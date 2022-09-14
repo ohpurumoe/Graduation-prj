@@ -64,7 +64,7 @@ ideinit(void)
       break;
     }
   }
-
+  cprintf("havedisk1              %d\n",havedisk1);
   // Switch back to disk 0.
   outb(0x1f6, 0xe0 | (0<<4));
 }

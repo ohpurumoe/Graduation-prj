@@ -283,11 +283,11 @@ IO WRITE
 */
   
   uint lba[2]={1,0};
-  uint *contents = (uint *)kalloc();
+  //uint *contents = (uint *)kalloc();
   uint *read_buffer = (uint *)kalloc();
-  for (int i = 0; i < 1024; i++) contents[i] = i;
+  //for (int i = 0; i < 1024; i++) contents[i] = i;
 
-  nvme_command_syn(nvme_write(40,lba,7,(char *)contents,0),&IO_que[0]);
+  //nvme_command_syn(nvme_write(40,lba,7,(char *)contents,0),&IO_que[0]);
 
   lba[0] = 0;
   nvme_command_syn(nvme_read(41,lba,1,(char *)read_buffer,0),&IO_que[0]);

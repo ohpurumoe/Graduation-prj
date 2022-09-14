@@ -193,6 +193,7 @@ fs.img: mkfs README README2 README3 README4 README5 README6 README7 $(UPROGS)
 
 nvme.img: 
 	dd if=/dev/zero of=nvme.img bs=1M count=16
+	./mkfs nvme.img README README2 README3 README4 README5 README6 README7 $(UPROGS)
 
 -include *.d
 
@@ -215,7 +216,7 @@ print: xv6.pdf
 
 # run in emulators
 
-bochs : fs.img xv6.img
+bochs : nvme.img fs.img xv6.img
 	if [ ! -e .bochsrc ]; then ln -s dot-bochsrc .bochsrc; fi
 	bochs -q
 

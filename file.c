@@ -24,22 +24,26 @@ int cache_meta_idx[70];
 
 struct spinlock filewritelock;
 
+
 int 
 hash(char *str)
 {
-  const uint p= 31;
-  const uint m = 1e9+9;
-
-  int hashval = 0;
-  int power = 1;
   int len = strlen(str);
+  int ret = 0;
+  int maxhash = 1410918871;
+  int prime = 73;
 
   for (int i = 0; i < len; i++){
-    hashval = (hashval+(str[i]-'a'+1)*power)%m;
-    power = (p*power) % m;
+    if (i == 0 ) ret = (ret + (str[i] - 'a' + 1) * 1 ) % maxhash;
+    else {
+      ret = (ret + (str[i] - 'a' + 1) * (prime % maxhash) ) % maxhash;
+      prime = prime * 73;
+    }
   }
-  return hashval;
+  return ret;
 }
+
+
 
 void
 setfds(struct file *f, int i, int fd)
