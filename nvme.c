@@ -264,7 +264,7 @@ void
 sys_nvme_setting(void)
 {
 
-  print_cq_entry(admin_que.completion_queue[0]);
+  /*print_cq_entry(admin_que.completion_queue[0]);
   nvme_command_syn(nvme_identify(34,0,1),&admin_que);
   nvme_command_syn(nvme_set_feature(36,0),&admin_que);
 
@@ -274,7 +274,7 @@ sys_nvme_setting(void)
   print_cq_entry(admin_que.completion_queue[0]);
   print_cq_entry(admin_que.completion_queue[1]);
   print_cq_entry(admin_que.completion_queue[2]);
-  print_cq_entry(admin_que.completion_queue[3]);
+  print_cq_entry(admin_que.completion_queue[3]);*/
 
 /*
 ==============================================
@@ -282,7 +282,7 @@ IO WRITE
 ==============================================
 */
   
-  uint lba[2]={1,0};
+  /*uint lba[2]={1,0};
   uint *contents = (uint *)kalloc();
   uint *read_buffer = (uint *)kalloc();
   for (int i = 0; i < 1024; i++) contents[i] = i;
@@ -365,5 +365,7 @@ IO WRITE
   print_cq_entry(IO_que[0].completion_queue[4]);
   print_cq_entry(IO_que[0].completion_queue[5]);      
 
-  cprintf("real complete!\n");
+  cprintf("real complete!\n");*/
+
+  slab_test();
 }

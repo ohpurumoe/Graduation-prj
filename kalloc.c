@@ -1,7 +1,6 @@
 // Physical memory allocator, intended to allocate
 // memory for user processes, kernel stacks, page table pages,
 // and pipe buffers. Allocates 4096-byte pages.
-
 #include "types.h"
 #include "defs.h"
 #include "param.h"
@@ -28,6 +27,7 @@ struct {
 // the pages mapped by entrypgdir on free list.
 // 2. main() calls kinit2() with the rest of the physical pages
 // after installing a full page table that maps them on all cores.
+
 void
 kinit1(void *vstart, void *vend)
 {
@@ -41,6 +41,7 @@ kinit2(void *vstart, void *vend)
 {
   freerange(vstart, vend);
   kmem.use_lock = 1;
+  slab_init();
 }
 
 void
@@ -51,6 +52,7 @@ freerange(void *vstart, void *vend)
   for(; p + PGSIZE <= (char*)vend; p += PGSIZE)
     kfree(p);
 }
+
 //PAGEBREAK: 21
 // Free the page of physical memory pointed at by v,
 // which normally should have been returned by a
@@ -93,4 +95,3 @@ kalloc(void)
     release(&kmem.lock);
   return (char*)r;
 }
-
