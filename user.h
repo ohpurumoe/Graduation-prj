@@ -30,7 +30,7 @@ int uptime(void);
 void nvme_setting(void);
 int fileoffset(int f, int n);
 int get_ticks(void);
-
+void cd(char *);
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);

@@ -645,16 +645,16 @@ sys_link(void)
   if(argstr(0, &old) < 0 || argstr(1, &new) < 0)
     return -1;
 
-  begin_op();
+  begin_op(myproc()->cwd->dev);
   if((ip = namei(old)) == 0){
-    end_op();
+    end_op(myproc()->cwd->dev);
     return -1;
   }
 
   ilock(ip);
   if(ip->type == T_DIR){
     iunlockput(ip);
-    end_op();
+    end_op(myproc()->cwd->dev);
     return -1;
   }
 
@@ -672,7 +672,7 @@ sys_link(void)
   iunlockput(dp);
   iput(ip);
 
-  end_op();
+  end_op(myproc()->cwd->dev);
 
   return 0;
 
@@ -681,7 +681,7 @@ bad:
   ip->nlink--;
   iupdate(ip);
   iunlockput(ip);
-  end_op();
+  end_op(myproc()->cwd->dev);
   return -1;
 }
 
@@ -713,9 +713,9 @@ sys_unlink(void)
   if(argstr(0, &path) < 0)
     return -1;
 
-  begin_op();
+  begin_op(myproc()->cwd->dev);
   if((dp = nameiparent(path, name)) == 0){
-    end_op();
+    end_op(myproc()->cwd->dev);
     return -1;
   }
 
@@ -749,13 +749,13 @@ sys_unlink(void)
   iupdate(ip);
   iunlockput(ip);
 
-  end_op();
+  end_op(myproc()->cwd->dev);
 
   return 0;
 
 bad:
   iunlockput(dp);
-  end_op();
+  end_op(myproc()->cwd->dev);
   return -1;
 }
 
@@ -813,23 +813,23 @@ sys_caching_open(void)
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
     return -1;
 
-  begin_op();
+  begin_op(myproc()->cwd->dev);
 
   if(omode & O_CREATE){
     ip = create(path, T_FILE, 0, 0);
     if(ip == 0){
-      end_op();
+      end_op(myproc()->cwd->dev);
       return -1;
     }
   } else {
     if((ip = namei(path)) == 0){
-      end_op();
+      end_op(myproc()->cwd->dev);
       return -1;
     }
     ilock(ip);
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
-      end_op();
+      end_op(myproc()->cwd->dev);
       return -1;
     }
   }
@@ -838,11 +838,11 @@ sys_caching_open(void)
     if(f)
       fileclose(f);
     iunlockput(ip);
-    end_op();
+    end_op(myproc()->cwd->dev);
     return -1;
   }
   iunlock(ip);
-  end_op();
+  end_op(myproc()->cwd->dev);
 
   f->type = FD_INODE;
   f->ip = ip;
@@ -868,23 +868,27 @@ sys_open(void)
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
     return -1;
 
-  begin_op();
+  begin_op(myproc()->cwd->dev);
 
   if(omode & O_CREATE){
     ip = create(path, T_FILE, 0, 0);
     if(ip == 0){
-      end_op();
+      end_op(myproc()->cwd->dev);
       return -1;
     }
-  } else {
+  } 
+  else {
+    cprintf("open nvme readme??\n");
     if((ip = namei(path)) == 0){
-      end_op();
+      cprintf("right before end op in open syscall\n");
+      end_op(myproc()->cwd->dev);
       return -1;
     }
+    cprintf("open nvme readme ip complete??\n");
     ilock(ip);
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
-      end_op();
+      end_op(myproc()->cwd->dev);
       return -1;
     }
   }
@@ -893,13 +897,14 @@ sys_open(void)
     if(f)
       fileclose(f);
     iunlockput(ip);
-    end_op();
+    end_op(myproc()->cwd->dev);
     return -1;
   }
   iunlock(ip);
-  end_op();
+  end_op(myproc()->cwd->dev);
 
-  f->type = FD_INODE;
+  f->type = FD_INODE;  
+
   f->ip = ip;
   f->off = 0;
   f->readable = !(omode & O_WRONLY);
@@ -913,13 +918,13 @@ sys_mkdir(void)
   char *path;
   struct inode *ip;
 
-  begin_op();
+  begin_op(myproc()->cwd->dev);
   if(argstr(0, &path) < 0 || (ip = create(path, T_DIR, 0, 0)) == 0){
-    end_op();
+    end_op(myproc()->cwd->dev);
     return -1;
   }
   iunlockput(ip);
-  end_op();
+  end_op(myproc()->cwd->dev);
   return 0;
 }
 
@@ -930,16 +935,16 @@ sys_mknod(void)
   char *path;
   int major, minor;
 
-  begin_op();
+  begin_op(myproc()->cwd->dev);
   if((argstr(0, &path)) < 0 ||
      argint(1, &major) < 0 ||
      argint(2, &minor) < 0 ||
      (ip = create(path, T_DEV, major, minor)) == 0){
-    end_op();
+    end_op(myproc()->cwd->dev);
     return -1;
   }
   iunlockput(ip);
-  end_op();
+  end_op(myproc()->cwd->dev);
   return 0;
 }
 
@@ -950,20 +955,20 @@ sys_chdir(void)
   struct inode *ip;
   struct proc *curproc = myproc();
   
-  begin_op();
+  begin_op(myproc()->cwd->dev);
   if(argstr(0, &path) < 0 || (ip = namei(path)) == 0){
-    end_op();
+    end_op(myproc()->cwd->dev);
     return -1;
   }
   ilock(ip);
   if(ip->type != T_DIR){
     iunlockput(ip);
-    end_op();
+    end_op(myproc()->cwd->dev);
     return -1;
   }
   iunlock(ip);
   iput(curproc->cwd);
-  end_op();
+  end_op(myproc()->cwd->dev);
   curproc->cwd = ip;
   return 0;
 }
@@ -1015,5 +1020,19 @@ sys_pipe(void)
   }
   fd[0] = fd0;
   fd[1] = fd1;
+  return 0;
+}
+
+int
+sys_cd(void)
+{
+  char *path;
+  if (argstr(0,&path) < 0 ){
+    return -1;
+  }
+  cprintf("before cd cwd %x\n", myproc()->cwd);
+  myproc()->cwd = namei(path);
+  cprintf("after cd cwd %x\n", myproc()->cwd);
+  cprintf("END CD\n");
   return 0;
 }

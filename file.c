@@ -316,9 +316,9 @@ fileclose(struct file *f)
   if(ff.type == FD_PIPE)
     pipeclose(ff.pipe, ff.writable);
   else if(ff.type == FD_INODE){
-    begin_op();
+    begin_op(ff.ip->dev);
     iput(ff.ip);
-    end_op();
+    end_op(ff.ip->dev);
   }
 }
 
@@ -405,12 +405,12 @@ PageCacheFileWrite(struct file *f, char *addr, int n, int off)
       if(n1 > max)
         n1 = max;
 
-      begin_op();
+      begin_op(f->ip->dev);
       ilock(f->ip);
       if ((r = writei(f->ip, addr + i, off, n1)) > 0)
         off += r;
       iunlock(f->ip);
-      end_op();
+      end_op(f->ip->dev);
 
       if(r < 0)
         break;
@@ -455,12 +455,12 @@ filewrite(struct file *f, char *addr, int n)
       if(n1 > max)
         n1 = max;
 
-      begin_op();
+      begin_op(f->ip->dev);
       ilock(f->ip);
       if ((r = writei(f->ip, addr + i, f->off, n1)) > 0)
         f->off += r;
       iunlock(f->ip);
-      end_op();
+      end_op(f->ip->dev);
 
       if(r < 0)
         break;

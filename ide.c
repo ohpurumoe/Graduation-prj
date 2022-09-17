@@ -12,6 +12,7 @@
 #include "sleeplock.h"
 #include "fs.h"
 #include "buf.h"
+#include "nvme.h"
 
 #define SECTOR_SIZE   512
 #define IDE_BSY       0x80
@@ -30,7 +31,9 @@
 
 static struct spinlock idelock;
 static struct buf *idequeue;
-
+//struct nvme_queue IO_que;
+int nvme_command_id = 5;
+char *prp1, *prp2;
 static int havedisk1;
 static void idestart(struct buf*);
 
@@ -65,6 +68,8 @@ ideinit(void)
     }
   }
   cprintf("havedisk1              %d\n",havedisk1);
+  prp1 = (char *)kalloc();
+  prp2 = (char *)kalloc();
   // Switch back to disk 0.
   outb(0x1f6, 0xe0 | (0<<4));
 }
@@ -77,13 +82,12 @@ idestart(struct buf *b)
     panic("idestart");
   if(b->blockno >= FSSIZE)
     panic("incorrect blockno");
+
   int sector_per_block =  BSIZE/SECTOR_SIZE;
   int sector = b->blockno * sector_per_block;
+  if (sector_per_block > 7) panic("idestart"); 
   int read_cmd = (sector_per_block == 1) ? IDE_CMD_READ :  IDE_CMD_RDMUL;
   int write_cmd = (sector_per_block == 1) ? IDE_CMD_WRITE : IDE_CMD_WRMUL;
-
-  if (sector_per_block > 7) panic("idestart");
-
   idewait(0);
   outb(0x3f6, 0);  // generate interrupt
   outb(0x1f2, sector_per_block);  // number of sectors
@@ -97,6 +101,7 @@ idestart(struct buf *b)
   } else {
     outb(0x1f7, read_cmd);
   }
+  
 }
 
 // Interrupt handler.
@@ -149,20 +154,40 @@ iderw(struct buf *b)
   acquire(&idelock);  //DOC:acquire-lock
 
   // Append b to idequeue.
-  b->qnext = 0;
-  for(pp=&idequeue; *pp; pp=&(*pp)->qnext)  //DOC:insert-queue
-    ;
-  *pp = b;
-
-  // Start disk if necessary.
-  if(idequeue == b)
-    idestart(b);
-
-  // Wait for request to finish.
-  while((b->flags & (B_VALID|B_DIRTY)) != B_VALID){
-    sleep(b, &idelock);
+  if(b->dev == ROOTDEV){
+    b->qnext = 0;
+    for(pp=&idequeue; *pp; pp=&(*pp)->qnext)  //DOC:insert-queue
+      ;
+    *pp = b;
+    // Start disk if necessary.
+    if(idequeue == b) {
+      idestart(b);
+    }
+    // Wait for request to finish.
+    while((b->flags & (B_VALID|B_DIRTY)) != B_VALID){
+      sleep(b, &idelock);
+    }
   }
+  if(b->dev == NVMEDEV){
+    if(b == 0)
+      panic("idestart");
+    if(b->blockno >= FSSIZE)
+      panic("incorrect blockno");
 
-
+    int sector_per_block =  BSIZE/SECTOR_SIZE;
+    int sector = b->blockno * sector_per_block;
+    if (sector_per_block > 7) panic("idestart");    
+    uint lba[2] = {sector,0};
+    if(b->flags & B_DIRTY){
+      //nvme_write
+      memmove(prp1,b->data,SECTOR_SIZE);
+      nvme_command_syn(nvme_write(nvme_command_id,lba,0,prp1,0), &IO_que[0]);
+    } else {
+      //nvme_read
+      nvme_command_syn(nvme_read(nvme_command_id,lba,0,prp1,0), &IO_que[0]);
+      memmove(b->data,prp1,SECTOR_SIZE);
+    }
+    nvme_command_id++;
+  }
   release(&idelock);
 }

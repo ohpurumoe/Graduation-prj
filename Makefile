@@ -187,13 +187,13 @@ UPROGS=\
 	_zombie\
 	_test\
 
-fs.img: mkfs README README2 README3 README4 README5 README6 README7 $(UPROGS)
-	./mkfs fs.img README README2 README3 README4 README5 README6 README7 $(UPROGS)
+fs.img: mkfs README2 $(UPROGS)
+	./mkfs fs.img README2 $(UPROGS)
 
 
 nvme.img: 
-	dd if=/dev/zero of=nvme.img bs=1M count=16
-	./mkfs nvme.img README README2 README3 README4 README5 README6 README7 $(UPROGS)
+	dd if=/dev/zero of=nvme.img bs=1M count=32
+	./mkfs nvme.img README README3 README4 README5 README6 README7 $(UPROGS)
 
 -include *.d
 

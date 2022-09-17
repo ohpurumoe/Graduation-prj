@@ -7,6 +7,7 @@
 #include "proc.h"
 #include "spinlock.h"
 #include "pagecache.h"
+#include "file.h"
 
 struct {
   struct spinlock lock;
@@ -120,6 +121,7 @@ found:
   sp -= sizeof *p->context;
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
+  cprintf("alloc proc call forkret??\n");
   p->context->eip = (uint)forkret;
 
   /*
@@ -130,7 +132,7 @@ found:
 
 
 
-
+  cprintf("done????\n");
 
   return p;
 }
@@ -272,9 +274,9 @@ exit(void)
   }
   cache_meta_idx[curproc->meta_idx_idx] = 0xff;
   metaidx_flag[curproc->meta_idx_idx] = 0;
-  begin_op();
+  begin_op((curproc->cwd)->dev);
   iput(curproc->cwd);
-  end_op();
+  end_op((curproc->cwd)->dev);
   curproc->cwd = 0;
 
   acquire(&ptable.lock);
@@ -429,7 +431,6 @@ forkret(void)
   static int first = 1;
   // Still holding ptable.lock from scheduler.
   release(&ptable.lock);
-
   if (first) {
     // Some initialization functions must be run in the context
     // of a regular process (e.g., they call sleep), and thus cannot
@@ -437,6 +438,8 @@ forkret(void)
     first = 0;
     iinit(ROOTDEV);
     initlog(ROOTDEV);
+    iinit(NVMEDEV);
+    initlog(NVMEDEV);
   }
 
   // Return to "caller", actually trapret (see allocproc).

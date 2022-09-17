@@ -175,7 +175,7 @@ read/write command
 
 void
 rw_command_set_lba(uint starting_lba[2], struct iosq_entry *element){
-    cprintf("startlba%x %x\n",starting_lba[1],starting_lba[0] );
+    //cprintf("startlba%x %x\n",starting_lba[1],starting_lba[0] );
     for (int i = 0; i < 2; i++){
         (*element).command_specific[i]=starting_lba[i];
     }

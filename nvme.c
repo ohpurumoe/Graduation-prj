@@ -12,8 +12,7 @@
 #include "nvme_field.h"
 #include "queue.h"
 
-struct nvme_queue admin_que;
-struct nvme_queue IO_que[8];
+
 void
 aqa_setting(uint bar)
 {
@@ -55,58 +54,31 @@ void cc_setting(uint bar)
   *cc |= 0x00460001;
 }
 
-
-void
-nvme_attach(struct pci_func *pcif)
+int
+cmp_commandid(struct iosq_entry command1, struct iocq_entry command2)
 {
-    pci_func_nvme_enable(pcif);
-    uint baseio = pcif->BAR;
-
-    *(volatile uint*)(baseio+0x14) = 0;//cc register
-
-    while(1){
-      volatile uint *rdy = (volatile uint*)(baseio+0x1c);
-      if(*rdy%2 == 0){
-          cprintf("nvme setting start.. 1 admin queue, 8 IO queue\n");
-          break;
-      }
-    } 
-
-    init_que(&admin_que,0,0);
-    admin_que.submission_doorbell = (volatile uint)(baseio + 0x1000);
-    admin_que.completion_doorbell = (volatile uint)(baseio + 0x1004);
-
-    for (int i = 0; i < 8; i++){
-      init_que(&IO_que[i],0,0);
-      IO_que[i].submission_queue = (struct iosq_entry *)kalloc();
-      IO_que[i].completion_queue = (struct iocq_entry *)kalloc();
-      IO_que[i].submission_doorbell = (volatile uint)(baseio + 0x1000 + 8*(i+1));
-      IO_que[i].completion_doorbell = (volatile uint)(baseio + 0x1004 + 8*(i+1));
-    }
-
-    aqa_setting(baseio);
-    asq_setting(baseio);
-    acq_setting(baseio);
-    cc_setting(baseio);
-
-    while(1){
-    volatile uint *rdy = (volatile uint*)(baseio+0x1c);
-      if(*rdy%2 ==1){
-          cprintf("nvme ready complelete!\n");
-          break;
-      }
-    }    
-    return;
-};
-
+  cprintf(" %d ?= %d, %d ?= %d\n",command1.command_identifier[0],command2.command_identifier[0],command1.command_identifier[1],command2.command_identifier[1]);
+  if(command1.command_identifier[0] != command2.command_identifier[0]) return -1;
+  if(command1.command_identifier[1] != command2.command_identifier[1]) return -1;
+  return 1;
+}
 
 void
 nvme_command_syn(struct iosq_entry command, struct nvme_queue *que)
 {
   que->submission_queue[que->iosq_rear] = command;
   *(volatile uint*)que->submission_doorbell = ++que->iosq_rear;
-  while(get_P(que->completion_queue[que->iocq_front]) != que->p) yield(); 
-  yield();yield();
+  while((get_P(que->completion_queue[que->iocq_front]) != que->p));
+  while(cmp_commandid(command, que->completion_queue[que->iocq_front]) == -1 );
+  //cprintf("complete p!!\n");
+  //while(cmp_commandid(command, que->completion_queue[que->iocq_front]) == -1 ) {
+  //  for (volatile int i = 0; i < 1000; i++){}
+  //}
+  //while(command.command_identifier[0] != que->completion_queue[que->iocq_front].command_identifier[0]);
+  //while(command.command_identifier[1] != que->completion_queue[que->iocq_front].command_identifier[1]);
+  // yield(); 
+
+  //cprintf("HELLO???? %x\n", (que->completion_queue[que->iocq_front].command_specific));
 
   *(volatile uint*)que->completion_doorbell = ++que->iocq_front;
   if(que->iosq_rear >= QSIZE) que->iosq_rear %= QSIZE;
@@ -250,6 +222,56 @@ nvme_read(uint command_id,uint *lba, uint num_lb, char *read_prps1, char *read_p
 }
 
 void
+nvme_attach(struct pci_func *pcif)
+{
+    pci_func_nvme_enable(pcif);
+    uint baseio = pcif->BAR;
+
+    *(volatile uint*)(baseio+0x14) = 0;//cc register
+
+    while(1){
+      volatile uint *rdy = (volatile uint*)(baseio+0x1c);
+      if(*rdy%2 == 0){
+          cprintf("nvme setting start.. 1 admin queue, 8 IO queue\n");
+          break;
+      }
+    } 
+
+    init_que(&admin_que,0,0);
+    admin_que.submission_doorbell = (volatile uint)(baseio + 0x1000);
+    admin_que.completion_doorbell = (volatile uint)(baseio + 0x1004);
+
+    for (int i = 0; i < 8; i++){
+      init_que(&IO_que[i],0,0);
+      IO_que[i].submission_queue = (struct iosq_entry *)kalloc();
+      IO_que[i].completion_queue = (struct iocq_entry *)kalloc();
+      IO_que[i].submission_doorbell = (volatile uint)(baseio + 0x1000 + 8*(i+1));
+      IO_que[i].completion_doorbell = (volatile uint)(baseio + 0x1004 + 8*(i+1));
+    }
+
+    aqa_setting(baseio);
+    asq_setting(baseio);
+    acq_setting(baseio);
+    cc_setting(baseio);
+
+    while(1){
+    volatile uint *rdy = (volatile uint*)(baseio+0x1c);
+      if(*rdy%2 ==1){
+          cprintf("nvme ready complelete!\n");
+          break;
+      }
+    }    
+    nvme_command_syn(nvme_identify(1,0,1),&admin_que);
+    nvme_command_syn(nvme_set_feature(2,0),&admin_que);
+    nvme_command_syn(nvme_create_iocq(3,0),&admin_que);
+    nvme_command_syn(nvme_create_iosq(4,0),&admin_que);
+
+
+    return;
+};
+
+
+void
 print_cq_entry(struct iocq_entry check)
 {
   cprintf("command id %d %d\n",check.command_identifier[1],check.command_identifier[0]);
@@ -265,11 +287,11 @@ sys_nvme_setting(void)
 {
 
   print_cq_entry(admin_que.completion_queue[0]);
-  nvme_command_syn(nvme_identify(34,0,1),&admin_que);
-  nvme_command_syn(nvme_set_feature(36,0),&admin_que);
+  //nvme_command_syn(nvme_identify(34,0,1),&admin_que);
+  //nvme_command_syn(nvme_set_feature(36,0),&admin_que);
 
-  nvme_command_syn(nvme_create_iocq(38,0),&admin_que);
-  nvme_command_syn(nvme_create_iosq(39,0),&admin_que);
+  //nvme_command_syn(nvme_create_iocq(38,0),&admin_que);
+  //nvme_command_syn(nvme_create_iosq(39,0),&admin_que);
 
   print_cq_entry(admin_que.completion_queue[0]);
   print_cq_entry(admin_que.completion_queue[1]);

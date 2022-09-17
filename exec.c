@@ -6,6 +6,7 @@
 #include "defs.h"
 #include "x86.h"
 #include "elf.h"
+#include "file.h"
 
 int
 exec(char *path, char **argv)
@@ -19,10 +20,10 @@ exec(char *path, char **argv)
   pde_t *pgdir, *oldpgdir;
   struct proc *curproc = myproc();
 
-  begin_op();
+  begin_op((curproc->cwd)->dev);
 
   if((ip = namei(path)) == 0){
-    end_op();
+    end_op((curproc->cwd)->dev);
     cprintf("exec: fail\n");
     return -1;
   }
@@ -57,7 +58,7 @@ exec(char *path, char **argv)
       goto bad;
   }
   iunlockput(ip);
-  end_op();
+  end_op(curproc->cwd->dev);
   ip = 0;
 
   // Allocate two pages at the next page boundary.
@@ -108,7 +109,7 @@ exec(char *path, char **argv)
     freevm(pgdir);
   if(ip){
     iunlockput(ip);
-    end_op();
+    end_op(curproc->cwd->dev);
   }
   return -1;
 }

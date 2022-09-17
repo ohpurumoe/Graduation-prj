@@ -166,17 +166,79 @@ int main(int argc, char* argv[])
 int
 main(int argc, char* argv[])
 {   
-    nvme_setting();
-/*
+   // nvme_setting();
+    printf(1,"pid is %d\n",getpid());
+    cd("|");
+    printf(1, "change cwd????\n");
     int tmp1 = get_ticks();
-    for (int i = 0; i < 7; i++){
+    
+    int V = open("README",O_RDWR);
+    printf(1, "%d %d\n",tmp1,V);
+    char *p = malloc(4096);
+
+    
+    fileoffset(V,4093);
+    char *q="pumpk";
+    write(V,q,5);
+    fileoffset(V,4093);
+    read(V,p,10);
+
+    printf(1,"\nresult\n");
+    for (int i = 0; i < 10; i++){
+        printf(1,"%d ",p[i]);
+    }
+    printf(1,"\nEND\n");
+    close(V);
+
+    V = open("README",O_RDWR);
+    fileoffset(V,4093);
+    read(V,p,10);
+
+    printf(1,"\nresult\n");
+    for (int i = 0; i < 10; i++){
+        printf(1,"%d ",p[i]);
+    }
+    printf(1,"\nEND\n");
+
+    printf(1,"-------------------------------------------------------\n");
+    cd("/");
+    V = open("README2",O_RDWR);
+    fileoffset(V,4093);
+    read(V,p,10);
+
+    printf(1,"\nresult\n");
+    for (int i = 0; i < 10; i++){
+        printf(1,"%d ",p[i]);
+    }
+    printf(1,"\nEND\n");
+
+    fileoffset(V,4093);
+    write(V,q,5);
+    fileoffset(V,4093);
+    read(V,p,10);
+    printf(1,"\nresult\n");
+    for (int i = 0; i < 10; i++){
+        printf(1,"%d ",p[i]);
+    }
+    printf(1,"\nEND\n");
+
+    close(V);
+
+    V = open("README2",O_RDWR);
+    fileoffset(V,4093);
+    read(V,p,10);
+
+    printf(1,"\nresult\n");
+    for (int i = 0; i < 10; i++){
+        printf(1,"%d ",p[i]);
+    }
+    printf(1,"\nEND\n");
+    /*for (int i = 0; i < 7; i++){
         p[i] = malloc(4096*3);
         v[i] = caching_open(filename[i],O_RDWR);
         caching_read(v[i],p[i],4096*3,0);
-    }
-
-
-    for (int k = 0; k < 100; k++){
+    }*/
+    /*for (int k = 0; k < 100; k++){
         for (int i = 0; i < 7; i++){
             char *q= "pumpk";
             caching_write(v[i%7],q,5,4095);
@@ -186,18 +248,12 @@ main(int argc, char* argv[])
         caching_read(v[i%7],p[i%7],10,4093);
     }
 
-
-
     for (int i = 0; i < 7; i++) caching_close(v[i]);
-
-
 
     for (int i = 0; i < 7; i++){
         v[i] = caching_open(filename[i],O_RDWR);
         caching_read(v[i%7],p[i%7],4096*3,0);
     }
-
-
 
     int tmp2 = get_ticks();
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -206,8 +262,6 @@ main(int argc, char* argv[])
         v[i] = open(filename[i],O_RDWR);
         read(v[i],p[i],4096*3);
     }
-
-
 
     for(int k = 0;k < 100; k++){
     for (int i = 0; i < 7; i++){
@@ -218,12 +272,10 @@ main(int argc, char* argv[])
     }
     }
 
-
     for (int i = 0; i < 7; i++){
         fileoffset(v[i%7],4093);
         read(v[i%7],p[i%7],10);
     }
-
 
     for (int i = 0; i < 7; i++) close(v[i]);
 
@@ -232,13 +284,9 @@ main(int argc, char* argv[])
         fileoffset(v[i%7],0);
         read(v[i%7],p[i%7],4096*3);
     }
-
-
     int tmp3 = get_ticks();
+    printf(1,"%d %d\n",tmp2-tmp1, tmp3-tmp2);*/
 
 
-    printf(1,"%d %d\n",tmp2-tmp1, tmp3-tmp2);
-
-*/
     exit();
 }

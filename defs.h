@@ -103,8 +103,8 @@ void            microdelay(int);
 // log.c
 void            initlog(int dev);
 void            log_write(struct buf*);
-void            begin_op();
-void            end_op();
+void            begin_op(uint dev);
+void            end_op(uint dev);
 
 // mp.c
 extern int      ismp;

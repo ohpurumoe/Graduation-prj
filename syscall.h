@@ -27,4 +27,5 @@
 #define SYS_caching_read 26
 #define SYS_caching_write 27
 #define SYS_get_ticks 28
+#define SYS_cd 29
 
