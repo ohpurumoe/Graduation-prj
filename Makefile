@@ -31,7 +31,11 @@ OBJS = \
 	queue.o\
 	nvme_field.o\
 	nvme.o\
+<<<<<<< HEAD
 	slab.o\
+=======
+	buddy.o\
+>>>>>>> origin/buddy
 
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf
@@ -232,7 +236,11 @@ endif
 # QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw \
 -drive file=nvme.img,index=2,media=disk,format=raw,if=none,id=nvme \
+<<<<<<< HEAD
 -device nvme,serial=deadbeef,drive=nvme -smp $(CPUS) -m 512
+=======
+-device nvme,serial=deadbeef,drive=nvme -smp $(CPUS) -m 512  
+>>>>>>> origin/buddy
 qemu: fs.img xv6.img
 	$(QEMU) -serial mon:stdio $(QEMUOPTS)
 

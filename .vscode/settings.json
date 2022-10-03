@@ -3,5 +3,7 @@
         "x86.h": "c",
         "spinlock.h": "c",
         "memlayout.h": "c"
+        "param.h": "c",
+        "typeinfo": "c";
     }
 }

@@ -11,6 +11,7 @@
 #include "nvme_queue_entry.h"
 #include "nvme_field.h"
 #include "queue.h"
+#include "buddy.h"
 
 struct nvme_queue admin_que;
 struct nvme_queue IO_que[8];
@@ -263,6 +264,71 @@ print_cq_entry(struct iocq_entry check)
 void
 sys_nvme_setting(void)
 {
+  printBuddySystem();
+  printHash();
+
+  char *test1 = dmalloc(4096 * 2);
+  cprintf("test1 - %x\n", test1);
+  printBuddySystem();
+  printHash();
+
+  char *test2 = dmalloc(4096);
+  cprintf("test2 - %x\n", test2);
+  printBuddySystem();
+  printHash();
+
+  char *test3 = dmalloc(4096 * 16);
+  cprintf("test3 - %x\n", test3);
+  printBuddySystem();
+  printHash();
+
+  char *test4 = dmalloc(4096);
+  cprintf("test4 - %x\n", test4);
+  printBuddySystem();
+  printHash();
+
+  char *test5 = dmalloc(4096 * 3);
+  cprintf("test5 - %x\n", test5);
+  printBuddySystem();
+  printHash();
+
+  char *test6 = dmalloc(4097);
+  cprintf("test6 - %x\n", test6);
+  printBuddySystem();
+  printHash();
+
+  cprintf("-----------------------------------\n\n");
+  cprintf("free test start\n\n");
+
+  cprintf("\ntest2 free\n");
+  dfree(test2);
+  printBuddySystem();
+  printHash();
+
+  cprintf("\ntest4 free\n");
+  dfree(test4);
+  printBuddySystem();
+  printHash();
+
+  cprintf("\ntest6 free\n");
+  dfree(test6);
+  printBuddySystem();
+  printHash();
+
+  cprintf("\ntest3 free\n");
+  dfree(test3);
+  printBuddySystem();
+  printHash();
+
+  cprintf("\ntest5 free\n");
+  dfree(test5);
+  printBuddySystem();
+  printHash();
+
+  cprintf("\ntest1 free\n");
+  dfree(test1);
+  printBuddySystem();
+  printHash();
 
   /*print_cq_entry(admin_que.completion_queue[0]);
   nvme_command_syn(nvme_identify(34,0,1),&admin_que);
@@ -276,11 +342,11 @@ sys_nvme_setting(void)
   print_cq_entry(admin_que.completion_queue[2]);
   print_cq_entry(admin_que.completion_queue[3]);*/
 
-/*
-==============================================
+
+/*==============================================
 IO WRITE
-==============================================
-*/
+==============================================*/
+
   
   /*uint lba[2]={1,0};
   uint *contents = (uint *)kalloc();
