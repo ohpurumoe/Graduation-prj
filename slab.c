@@ -1,4 +1,5 @@
 #include "slab.h"
+#include "buddy.h"
 #include "types.h"
 #include "defs.h"
 #include "param.h"
@@ -29,7 +30,7 @@ struct page alloc_new_slab_page(uint slab_idx){
 
   memset(&new_page, 0, sizeof(new_page));
 
-  if((new_page.page_start = kalloc()) != 0){
+  if((new_page.page_start = dmalloc(PGSIZE)) != 0){
      make_slab_obj(&new_page, slab[slab_idx].obj_sz);
      slab[slab_idx].free_page_num++;
   }
@@ -37,7 +38,10 @@ struct page alloc_new_slab_page(uint slab_idx){
   return new_page;
 }
 
-struct hash_node* find_target_page(uint hash_idx, uint page_addr){
+struct hash_node* find_target_page(void* slab_obj){
+  uint page_addr = (((uint)slab_obj) / PGSIZE) * PGSIZE;
+  uint hash_idx = calc_hash_idx(page_addr);
+
   struct hash_node* cur_node = hash_table[hash_idx].head;
 
   while(cur_node){
@@ -55,37 +59,38 @@ uint check_slab_obj(uint obj_addr, uint obj_sz){
   else return 1;
 }
 
-void free_slab_obj(void* slab_obj){
-  uint page_addr = (((uint)slab_obj) / PGSIZE) * PGSIZE;
-  uint hash_idx = calc_hash_idx(page_addr);
+int free_slab_obj(void* slab_obj){
+  struct hash_node* hnode = find_target_page(slab_obj);
 
-  struct hash_node* hnode = find_target_page(hash_idx, page_addr);
-
-  if(hnode == 0) return;
+  if(hnode == 0) return NOT_FOUND;
 
   struct page* tar_page = hnode->cur_page;
   uint slab_idx = hnode->slab_idx;
 
-  if(!check_slab_obj((uint)slab_obj, slab[slab_idx].obj_sz)) return;
+  if(tar_page == 0) return INVALID;
+  if(!check_slab_obj((uint)slab_obj, slab[slab_idx].obj_sz)) return INVALID;
 
   //cprintf("slab_idx : %d hnode : %x\n", slab_idx, hnode);
 
-  if(tar_page == 0) return;
-
-  push_free_list(tar_page, slab_obj);
+  if(push_free_list(tar_page, slab_obj) == INVALID) return INVALID;
 
   if((tar_page->in_use_num) == 0){
     slab[slab_idx].free_page_num++;
 
     if(slab[slab_idx].free_page_num > MAX_FREE_PAGE){
-      return_slab_page(slab_idx, tar_page);
+      uint page_addr = (((uint)slab_obj) / PGSIZE) * PGSIZE;
+      uint hash_idx = calc_hash_idx(page_addr);
+
       return_hash_node(hash_idx, hnode);
+      return_slab_page(slab_idx, tar_page);
     }
   }
+
+  return SUCCESS;
 }
 
 void free_slab_page(uint slab_idx, struct page* slab_page){
-  kfree(slab_page->page_start);
+  dfree(slab_page->page_start);
   free_slab_obj(slab_page);
 }
 
@@ -96,7 +101,7 @@ uint calc_hash_idx(uint page_addr){
 void insert_hash_node(uint slab_idx, struct page* slab_page){
   uint hash_idx = calc_hash_idx((uint)(slab_page->page_start));
 
-  struct hash_node* cur_node = (struct hash_node*)kmalloc(sizeof(struct hash_node));
+  struct hash_node* cur_node = (struct hash_node*)dmalloc(sizeof(struct hash_node));
   cur_node->cur_page = slab_page;
   cur_node->slab_idx = slab_idx;
 
@@ -176,7 +181,14 @@ void return_slab_page(uint slab_idx, struct page* slab_page){
   slab[slab_idx].free_page_num--;
 }
 
-void push_free_list(struct page* cur_page, void* slab_obj){
+int push_free_list(struct page* cur_page, void* slab_obj){
+  uint* cur_obj = cur_page->free_list_head;
+
+  while(cur_obj){
+    if((uint)cur_obj == (uint)slab_obj) return INVALID;
+    cur_obj = (uint*)(*cur_obj);
+  }
+
   if(cur_page->free_list_tail != 0){
     *(cur_page->free_list_tail) = (uint)slab_obj;
     cur_page->free_list_tail = (uint*)slab_obj;
@@ -189,6 +201,7 @@ void push_free_list(struct page* cur_page, void* slab_obj){
   }
 
    cur_page->in_use_num--;
+   return SUCCESS;
 }
 
 void* pop_free_list(uint slab_idx){
@@ -373,13 +386,10 @@ alloc_fail:
   return 0;
 }
 
-void* kmalloc(uint N){
-  if((N == 0) || (N > PGSIZE)) return 0;
+typedef struct {
+  int a, b;
+} TEST_TYPE;
 
-  return slab_system(N);
-}
-
-typedef struct hash_node TEST_TYPE;
 TEST_TYPE* test_mem[(PGSIZE / sizeof(TEST_TYPE)) * 10];
 
 void slab_test(void){
@@ -391,8 +401,8 @@ void slab_test(void){
     print_slab(slab_idx);
     print_hash();
 
-    for(uint i=0; i < (3 * test_unit); i++){
-        TEST_TYPE* testptr = (TEST_TYPE*)kmalloc(sizeof(TEST_TYPE));
+    for(uint i=0; i < (10 * test_unit); i++){
+        TEST_TYPE* testptr = (TEST_TYPE*)dmalloc(sizeof(TEST_TYPE));
 
          if(testptr == 0) {
             cprintf("NULL PTR\n");
@@ -400,10 +410,10 @@ void slab_test(void){
         }
 
         test_mem[i] = testptr;
-        testptr->slab_idx = i % PGSIZE;
+        testptr->a = i % PGSIZE;
 
-        if(testptr->slab_idx != (i % PGSIZE)) {
-            cprintf("assert : write %x & read %x\n", i % PGSIZE, testptr->slab_idx);
+        if(testptr->a != (i % PGSIZE)) {
+            cprintf("assert : write %x & read %x\n", i % PGSIZE, testptr->a);
             goto fail;
         }
         
@@ -413,19 +423,19 @@ void slab_test(void){
     print_slab(slab_idx);
     print_hash();
 
-    for(uint i = test_unit; i < (3 * test_unit); i++){
-      free_slab_obj(test_mem[i]);
+    for(uint i = 5 * test_unit; i < (10 * test_unit); i++){
+      dfree(test_mem[i]);
     }
 
-    for(uint i = 0; i < (test_unit); i++){
-      free_slab_obj(test_mem[i]);
+    for(uint i = 0; i < (5 * test_unit); i++){
+      dfree(test_mem[i]);
     }
 
     print_slab(slab_idx);
     print_hash();
 
-    for(uint i=0; i < (3 * test_unit); i++){
-        TEST_TYPE* testptr = (TEST_TYPE*)kmalloc(sizeof(TEST_TYPE));
+    for(uint i=0; i < (10 * test_unit); i++){
+        TEST_TYPE* testptr = (TEST_TYPE*)dmalloc(sizeof(TEST_TYPE));
 
          if(testptr == 0) {
             cprintf("NULL PTR\n");
@@ -433,10 +443,10 @@ void slab_test(void){
         }
 
         test_mem[i] = testptr;
-        testptr->slab_idx = i % PGSIZE;
+        testptr->a = i % PGSIZE;
 
-        if(testptr->slab_idx != (i % PGSIZE)) {
-            cprintf("assert : write %x & read %x\n", i % PGSIZE, testptr->slab_idx);
+        if(testptr->a != (i % PGSIZE)) {
+            cprintf("assert : write %x & read %x\n", i % PGSIZE, testptr->a);
             goto fail;
         }
         
@@ -444,8 +454,8 @@ void slab_test(void){
         //free_slab_obj(testptr);
     }
 
-    for(uint i=0; i < (3 * test_unit); i++){
-        if(test_mem[i]->slab_idx != (i % PGSIZE)) {
+    for(uint i=0; i < (10 * test_unit); i++){
+        if(test_mem[i]->a != (i % PGSIZE)) {
             cprintf("assert : write %x & read %x\n", i % PGSIZE, *(test_mem[i]));
             goto fail;
         }

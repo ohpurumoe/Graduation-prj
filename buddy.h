@@ -41,5 +41,5 @@ void addSize(void *start, int size);
 int removeSize(void *start);
 void printHash();
 
-void dfree(char *address);
+void dfree(void *address);
 void mergeOrder(int targetOrder);

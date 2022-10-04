@@ -41,7 +41,6 @@ kinit2(void *vstart, void *vend)
 {
   freerange(vstart, vend);
   kmem.use_lock = 1;
-  slab_init();
 }
 
 void

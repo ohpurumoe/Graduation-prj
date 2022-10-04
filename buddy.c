@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "spinlock.h"
+#include "slab.h"
 
 struct {
     struct ORDERLIST orderList[20];
@@ -79,8 +80,11 @@ void buddyInit(void *vstart, void *vend) {
 }
 
 char *dmalloc(int size) {
-    if (size < PGSIZE)
-        panic("dmalloc size should be at least PGSIZE");
+    if (size < 1)
+        panic("dmalloc size should be at least 1");
+
+    if (size <= (PGSIZE / 2)) 
+        return (char*)slab_system(size);
 
     if (kmemAlloc.use_lock)
         acquire(&kmemAlloc.buddyLock);
@@ -248,8 +252,13 @@ void printHash() {
     }
 }
 
-void dfree(char *address) {
-    int size;
+void dfree(void *address) {
+    int size, status;
+
+    status = free_slab_obj(address);
+    if (status == SUCCESS) return;
+    if (status == INVALID) panic("dfree");
+
     size = removeSize((void *)address);
 
     if (size <= 0) panic("dfree");

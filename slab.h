@@ -5,7 +5,7 @@
 
 #define SLAB_NUM 10
 #define MAX_FREE_PAGE 2
-#define HASH_SIZE 20
+#define HASH_SIZE 3
 
 struct page{
   struct page* next;
@@ -44,11 +44,17 @@ enum INSERT_FLAG{
   TAIL
 };
 
+enum FREE_STATUS{
+  NOT_FOUND,
+  INVALID,
+  SUCCESS
+};
+
 void make_slab_obj(struct page* cur_page, uint obj_sz);
 struct page alloc_new_slab_page(uint slab_idx);
-struct hash_node* find_target_page(uint hash_idx, uint page_addr);
+struct hash_node* find_target_page(void* slab_obj);
 uint chech_slab_obj(uint obj_addr, uint obj_sz);
-void free_slab_obj(void* slab_obj);
+int free_slab_obj(void* slab_obj);
 void free_slab_page(uint slab_idx, struct page* slab_page);
 
 uint calc_hash_idx(uint page_addr);
@@ -57,7 +63,7 @@ void return_hash_node(uint hash_idx, struct hash_node* tar_node);
 
 void insert_slab_page(uint flag, uint slab_idx, struct page* slab_page);
 void return_slab_page(uint slab_idx, struct page* slab_page);
-void push_free_list(struct page* cur_page, void* slab_obj);
+int push_free_list(struct page* cur_page, void* slab_obj);
 void* pop_free_list(uint slab_idx);
 
 void slab_init(void);

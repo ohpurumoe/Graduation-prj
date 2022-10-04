@@ -264,7 +264,7 @@ print_cq_entry(struct iocq_entry check)
 void
 sys_nvme_setting(void)
 {
-  printBuddySystem();
+  /*printBuddySystem();
   printHash();
 
   char *test1 = dmalloc(4096 * 2);
@@ -328,7 +328,7 @@ sys_nvme_setting(void)
   cprintf("\ntest1 free\n");
   dfree(test1);
   printBuddySystem();
-  printHash();
+  printHash();*/
 
   /*print_cq_entry(admin_que.completion_queue[0]);
   nvme_command_syn(nvme_identify(34,0,1),&admin_que);

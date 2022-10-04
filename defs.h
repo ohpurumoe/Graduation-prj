@@ -206,11 +206,7 @@ int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
 
 //slab.c
-void            slab_init(void);
 void            slab_test(void);
-void            print_slab(uint);
-void*           kmalloc(uint);
-void            free_slab_obj(void*);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
