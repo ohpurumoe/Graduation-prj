@@ -12,6 +12,7 @@
 #include "mmu.h"
 #include "pagecache.h"
 #include "proc.h"
+#include "buddy.h"
 
 struct devsw devsw[NDEV];
 struct {

@@ -46,8 +46,8 @@ main(void)
   startothers();   // start other processors
   //kinit2(P2V(4*1024*1024), P2V(PHYSTOP)); // must come after startothers()
 
-  //buddyInit(P2V(4*1024*1024), P2V(4*1024*1024 + 4*1024*34));
-  buddyInit(P2V(4*1024*1024), P2V(PHYSTOP));
+  buddyInit(P2V(4*1024*1024), P2V(4*1024*1024 + 4*1024*80));
+  //buddyInit(P2V(4*1024*1024), P2V(PHYSTOP));
   slab_init();
 
   userinit();      // first user process

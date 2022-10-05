@@ -137,7 +137,7 @@ add_check_cache_hash(int idx, int meta_idx)
   int namehash = myproc()->NAMEFD[idx].namehash;
   for (tmp = &check_cache_hash[namehash % check_cache_hash_num] ; ; tmp = tmp->next){
     if(tmp->next == 0){
-      tmp->next = (struct check_cache_HASH *)dmalloc(sizeof(struct check_cache_HASH));
+      //tmp->next = (struct check_cache_HASH *)dmalloc(sizeof(struct check_cache_HASH));
       tmp->next->name = myproc()->NAMEFD[idx].name;
       tmp->next->meta_idx = meta_idx;
       tmp->next->next = 0;

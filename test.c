@@ -166,9 +166,9 @@ int main(int argc, char* argv[])
 int
 main(int argc, char* argv[])
 {   
-   // nvme_setting();
+   nvme_setting();
     //printf(1,"pid is %d\n",getpid());
-    cd("|");
+    /*cd("|");
     printf(1, "change cwd????\n");
     int tmp1 = get_ticks();
     
@@ -237,7 +237,7 @@ main(int argc, char* argv[])
     int tmp3 = get_ticks();
 
     printf(1,"nvme %d disk %d\n",tmp2-tmp1, tmp3-tmp2);
-    /*
+    
     for (int k = 0; k < 100; k++){
         for (int i = 0; i < 7; i++){
             char *q= "pumpk";
