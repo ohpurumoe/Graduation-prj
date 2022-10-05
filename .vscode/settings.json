@@ -1,6 +1,11 @@
 {
     "files.associations": {
         "x86.h": "c",
-        "sleeplock.h": "c"
+        "sleeplock.h": "c",
+        "spinlock.h": "c",
+        "memlayout.h": "c",
+        "param.h": "c",
+        "typeinfo": "c",
+        "defs.h": "c"
     }
 }

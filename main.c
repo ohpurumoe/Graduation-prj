@@ -7,6 +7,8 @@
 #include "x86.h"
 #include "pagecache.h"
 #include "pci.h"
+#include "buddy.h"
+#include "slab.h"
 
 static void startothers(void);
 static void mpmain(void)  __attribute__((noreturn));
@@ -42,8 +44,12 @@ main(void)
   ideinit();       // disk 
   
   startothers();   // start other processors
-  kinit2(P2V(4*1024*1024), P2V(PHYSTOP)); // must come after startothers()
-  
+  //kinit2(P2V(4*1024*1024), P2V(PHYSTOP)); // must come after startothers()
+
+  //buddyInit(P2V(4*1024*1024), P2V(4*1024*1024 + 4*1024*34));
+  buddyInit(P2V(4*1024*1024), P2V(PHYSTOP));
+  slab_init();
+
   userinit();      // first user process
   pci_scan();
   mpmain();        // finish this processor's setup
