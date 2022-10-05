@@ -17,7 +17,7 @@
 #include "fcntl.h"
 #include "pagecache.h"
 #include "memlayout.h"
-
+#include "buddy.h"
 struct spinlock cachelock;
 struct spinlock readlock[NOFILE];
 struct spinlock writelock[NOFILE];
@@ -114,7 +114,37 @@ sys_fileoffset(void)
   return 0;
 }
 
+int
+check_cache_hash_check(int idx)
+{
+  struct check_cache_HASH *tmp;
+  int namehash = myproc()->NAMEFD[idx].namehash;
+  char *name = myproc()->NAMEFD[idx].name;
+  for (tmp = &check_cache_hash[namehash % check_cache_hash_num] ; ; tmp = tmp->next){
+    if(strlen(name) == strlen(tmp->name) && (strncmp(name,tmp->name,strlen(name)) == 0)){
+      cache_meta_idx[myproc()->meta_idx_idx] = tmp->meta_idx;
+      return 1;
+    }  
+    if(tmp->next == 0) return -1;
+  }
+  return -1;
+}
 
+void
+add_check_cache_hash(int idx, int meta_idx)
+{
+  struct check_cache_HASH *tmp;
+  int namehash = myproc()->NAMEFD[idx].namehash;
+  for (tmp = &check_cache_hash[namehash % check_cache_hash_num] ; ; tmp = tmp->next){
+    if(tmp->next == 0){
+      tmp->next = (struct check_cache_HASH *)dmalloc(sizeof(struct check_cache_HASH));
+      tmp->next->name = myproc()->NAMEFD[idx].name;
+      tmp->next->meta_idx = meta_idx;
+      tmp->next->next = 0;
+      return;
+    }
+  }
+}
 
 int 
 check_cache(struct file *f, int pgidx)
@@ -122,37 +152,29 @@ check_cache(struct file *f, int pgidx)
   ///////////////////////need optimization
   for (int i = 0; i < NOFILE; i++){
     if(myproc()->NAMEFD[i].f == f) {
-      //cprintf("MYPROC()->NAMEFD\n");
-      for (int j = 0; j < NFILE; j++) {
-        
-        /*cprintf("cache meta idx : %d\n", j );
-        cprintf("namefd: %s, meta : %s\n",myproc()->NAMEFD[i].name,CACHE_META[j].name);
-        cprintf("namehash compare : %d\n", (myproc()->NAMEFD[i].namehash == CACHE_META[j].namehash));
-        cprintf("namehash compare : %d , %d\n", myproc()->NAMEFD[i].namehash , CACHE_META[j].namehash);
-        cprintf("name len compare : %d\n",(strlen(myproc()->NAMEFD[i].name) == strlen(CACHE_META[j].name)));
-        cprintf("cmp compare:  %d\n\n",(strncmp(myproc()->NAMEFD[i].name,CACHE_META[j].name,strlen(CACHE_META[j].name)) == 0));
-        */    
-        if(
-          (myproc()->NAMEFD[i].namehash == CACHE_META[j].namehash)&&
-          (strlen(myproc()->NAMEFD[i].name) == strlen(CACHE_META[j].name))&&
-          (strncmp(myproc()->NAMEFD[i].name,CACHE_META[j].name,strlen(CACHE_META[j].name)) == 0)
-        )
-        {       
-          //cprintf("check cache pid : %d, name %s, cachemetaidx %d\n ", myproc()->pid,CACHE_META[j].name,j);     
-          cache_meta_idx[myproc()->meta_idx_idx] = j;
-          break;
+
+      //hash finds
+      //hash miss
+      if(check_cache_hash_check(i) == -1){
+        for (int j = 0; j < NFILE; j++) {           
+          if(
+            (myproc()->NAMEFD[i].namehash == CACHE_META[j].namehash)&&
+            (strlen(myproc()->NAMEFD[i].name) == strlen(CACHE_META[j].name))&&
+            (strncmp(myproc()->NAMEFD[i].name,CACHE_META[j].name,strlen(CACHE_META[j].name)) == 0)
+          )
+          {
+            //add member in hash table
+            add_check_cache_hash(i,j);
+            cache_meta_idx[myproc()->meta_idx_idx] = j;
+            break;
+          }
         }
       }
       break;
     }
   }
 
-  //cprintf("cache_meta_idx : %d\n",cache_meta_idx);
-  //cprintf("pgidx %x %d\n",CACHE_META[cache_meta_idx].pageidx[pgidx] ,pgidx );
   if((cache_meta_idx[myproc()->meta_idx_idx]!= 0xff )&&CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[pgidx]!=0xff) {
-
-    //cprintf("check cache valid %d \n",CACHE[CACHE_META[cache_meta_idx].pageidx[1]].valid);
-
     return cachevalid;
   }
   else {
@@ -167,11 +189,9 @@ write_direct(struct file *f,int fd)
   char *name = 0;
   for (int i = 0; i < NOFILE; i++){
     for (int j = 0; j < NOFILE; j++){
-     // cprintf("NAMEFD idx %d FD idx %d fd val of NAMEFD %d, input fd %d\n", i,j,myproc()->NAMEFD[i].fd[j],fd);
-
       if(myproc()->NAMEFD[i].fd[j] == fd) {
         name = myproc()->NAMEFD[i].name;
-        namehash = myproc()->NAMEFD[i].namehash;//////////////////////////
+        namehash = myproc()->NAMEFD[i].namehash;
         i = NOFILE;
         break;
       }
@@ -181,9 +201,6 @@ write_direct(struct file *f,int fd)
   for (int i = 0; i < NFILE; i++) {
     if((namehash == CACHE_META[i].namehash) && (strlen(name) == strlen(CACHE_META[i].name)) && (strncmp(name,CACHE_META[i].name,strlen(name))==0)){
       for(int j = 0; j < (MAXFILE * BSIZE)/PGSIZE + 1; j++){
-        if(j < 3){
-         // cprintf("NAME %s, i-idx %d ,pgidx %d, dirty %d, valid %d\n",name,i,CACHE_META[i].pageidx[j], CACHE[CACHE_META[i].pageidx[j]].dirty,CACHE[CACHE_META[i].pageidx[j]].valid);
-        }
         if(CACHE_META[i].pageidx[j] != 0xff && CACHE[CACHE_META[i].pageidx[j]].dirty == cachevalid && CACHE[CACHE_META[i].pageidx[j]].valid ==1) {
  
           PageCacheFileWrite(f,CACHE[CACHE_META[i].pageidx[j]].page,PGSIZE,j*PGSIZE);
@@ -192,9 +209,6 @@ write_direct(struct file *f,int fd)
           release(&cachelock);
         }
       }
-      //acquire(&cachelock);
-      //CACHE_META[i].close = cachevalid;
-      //release(&cachelock);
       break;
     }
   }
@@ -203,7 +217,6 @@ write_direct(struct file *f,int fd)
 int
 cache_fault_handler(struct file *f, int off, int n, int fd, int rwmode, int gotoidx)
 {
-  //cprintf("fault handler!! %d\n",off);
   if(cachedpg_num == CACHESIZE){
     cachedpg_num--;
     release(&cachelock);
@@ -214,27 +227,18 @@ cache_fault_handler(struct file *f, int off, int n, int fd, int rwmode, int goto
 
   for (int i = 0; i < CACHESIZE; i++) {
     if(CACHE[i].valid == cacheinvalid) {
-      //cprintf("AAAAAAAAAAAABBBBBBBBBBBCCCCCCCCCCCCCCC,   %d\n", myproc()->pid);
       CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE] = i;
       break;
     }
   }
-  //cprintf("HANDLER PID1 %d cache_meta_idx %d cache idx %d\n", myproc()->pid,cache_meta_idx[myproc()->meta_idx_idx],CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]);
-  //cprintf("off %d rwmode %d gotoidx %d\n",off,rwmode,gotoidx);
-  
-  //cprintf("MYPROC meta idx idx %d\n\n", myproc()->meta_idx_idx);
   char *q = kalloc();
 
-  //f->off -= off%PGSIZE;
   release(&cachelock);
-  //fileread(f, q, PGSIZE);
   pageCacheFileRead(f,q,PGSIZE,off- (off)%PGSIZE);
   acquire(&cachelock);
 
   if(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].valid == cachevalid) {
     CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]=0xff;
-    //cprintf("AAAAAAAAAAAAAAAAAAAAAA\n");
-    //cprintf("pid %d, off %d, cache idx %d rwmode %d gotoidx %d\n", myproc()->pid,off,CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE],rwmode,gotoidx);
     kfree(q);
     if(rwmode == 0){
       if(gotoidx == 1) return 1;
@@ -249,28 +253,15 @@ cache_fault_handler(struct file *f, int off, int n, int fd, int rwmode, int goto
     
   }
   
-  //cprintf("HANDLER, pid %d offset %d\n",myproc()->pid, off);
-
-  //for (int i = 0; i < 20 ; i++) cprintf("%d ", q[i]);
-  //cprintf("\n");
-  //cprintf("HANDLER PID2 %d cache_meta_idx %d cache idx %d\n", myproc()->pid,cache_meta_idx[myproc()->meta_idx_idx],CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]);
-  //cprintf("off %d rwmode %d gotoidx %d\n",off,rwmode,gotoidx);
-  //cprintf("MYPROC meta idx idx %d\n\n", myproc()->meta_idx_idx);
-  
-  /*for(int i = 0; i < 10; i++) cprintf("%d ", q[i]);
-  cprintf("\n\n");
-  cprintf("cache idx %d\n",CACHE_META[cache_meta_idx].pageidx[off/PGSIZE]);
-  */
-
   memmove(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].page,q,PGSIZE);
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].valid = cachevalid;
+        CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].cache_page_num++;
   cachedpg_num++;
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].metaidx = cache_meta_idx[myproc()->meta_idx_idx];
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].metapgidx = off/PGSIZE;
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].dirty = cacheinvalid;
   acquire(&tickslock);
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].reference_time = ticks;
-  //cprintf("cache idx %d , TIME %d\n", CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE],CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].reference_time );
   release(&tickslock);
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].f = f;
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].fd = fd;
@@ -292,7 +283,6 @@ sys_caching_read(void)
   if(argfd(0, &fd, &f) < 0 || argint(2, &n) < 0 || argptr(1, &p, n) || argint(3,&tmpfoff) < 0)
     return -1;
 
-  //cprintf("CACHING READ pid %d , tmpfoff %d\n",myproc()->pid, tmpfoff);
   int startreadpgsize = (tmpfoff)/PGSIZE;
   int endreadpgsize = (tmpfoff+n-1)/PGSIZE;   
 
@@ -318,10 +308,6 @@ FIRSTREAD:
           release(&cachelock);
           goto FIRSTREAD;
         }
-
-        //cprintf("ADDR cur %x p %x\n",cur,p);
-
-
         memmove(cur,&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[tmpfoff%PGSIZE]),(PGSIZE-(tmpfoff%PGSIZE)));
         cur+=(PGSIZE-(tmpfoff%PGSIZE));   
         totalread += (PGSIZE-(tmpfoff%PGSIZE));
@@ -334,17 +320,8 @@ FIRSTREAD:
           release(&cachelock);
           goto FIRSTREAD;
         }
-        //cprintf("cache meta idx %d , pgidx %d, idx %d n %d\n", cache_meta_idx, tmpfoff/PGSIZE, tmpfoff%PGSIZE,n);
-        //cprintf("READ start idx PID %d, readsize %d off %d\n", myproc()->pid,n,tmpfoff%PGSIZE);
-        //for (int i = 0; i < 10;  i++) cprintf("%d ",CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[i] );
-
 
         memmove(cur,&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[tmpfoff%PGSIZE]),n);
-        
-        //cprintf("READ end idx PID %d\n", myproc()->pid);
-        //for (int i = 0; i < 10;  i++) cprintf("%d ",cur[i] );
-
-
         cur+=n; 
         tmpfoff += n;
         totalread += n;
@@ -367,16 +344,6 @@ SECONDREAD:
       }
       memmove(cur,&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[0]),n-((uint)cur-(uint)p));
       
- //cprintf("\nADDR cur %x p %x\n",cur,p);
-        //cprintf("end idx PID %d\n", myproc()->pid);
-        //for (int i = 0; i < 10;  i++) cprintf("%d ",CACHE[CACHE_META[cache_meta_idx].pageidx[tmpfoff/PGSIZE]].page[i] );
-        //cprintf("\n");
-
-        //cprintf("\nP\n");
-        //cprintf("end idx PID %d\n", myproc()->pid);
-        //for (int i = 0; i < 10;  i++) cprintf("%d ",p[i] );
-        //cprintf("\n");      
-
       char *curtmp = cur;
       cur+=n-((uint)cur-(uint)p);
       tmpfoff += n-((uint)curtmp-(uint)p);
@@ -407,28 +374,6 @@ THIRDREAD:
     } 
   }
   acquire(&cachelock);
-  
-  
-  /*cprintf("CACHE VALUE pid %d\n",myproc()->pid);
-  for (int i = 0; i < 2; i++){
-    cprintf("pid %d, idx %d, metaidx %d, metapgidx %d dirty %d, valid %d fd %d\n",
-    myproc()->pid,
-    i,CACHE[i].metaidx,
-    CACHE[i].metapgidx, 
-    CACHE[i].dirty, 
-    CACHE[i].valid,
-    CACHE[i].fd);
-    for (int j = 4024; j < 4024 + 20; j++){
-      cprintf("%d ", CACHE[i].page[j]);
-    }
-    cprintf("\n");
-  }  
-  
-  cprintf("CACHE META VALUE\n");
-  for (int i = 0; i < 3; i++){
-    cprintf("%s : pgidx %d, %d ,%d\n",CACHE_META[i].name, CACHE_META[i].pageidx[0], CACHE_META[i].pageidx[1],CACHE_META[i].pageidx[2]);
-  }
-  cprintf("------------------------------------------------------------------------------\n");*/
   release(&cachelock);
   return totalread;
 }
@@ -446,7 +391,6 @@ sys_read(void)
 int
 sys_caching_write(void)
 {
-  //acquire(&writelock);
   struct file *f;
   int n, fd;
   char *p;
@@ -454,11 +398,9 @@ sys_caching_write(void)
   int totalwrite = 0, tmpfoff;
   
   if(argfd(0, &fd, &f) < 0 || argint(2, &n) < 0 || argptr(1, &p, n) || argint(3,&tmpfoff) < 0){
-    //release(&writelock);
     return -1;
   }
 
-  //cprintf("TMPOFF %d\n", tmpfoff);
   int startwritepgsize = (tmpfoff)/PGSIZE;
   int endwritepgsize = (tmpfoff+n-1)/PGSIZE;
   cur = p;
@@ -467,7 +409,6 @@ sys_caching_write(void)
 
 FIRSTWRITE:
       acquire(&cachelock);
-     // cprintf("F         I          %x %x\n",f,i);
       if(check_cache(f,i)!=1){
         if(cache_fault_handler(f,tmpfoff,n,fd,1,1)==4) {
           release(&cachelock);
@@ -479,10 +420,6 @@ FIRSTWRITE:
           release(&cachelock);
           goto FIRSTWRITE;
         }        
-
-        //cprintf("TMPFOFF                           %d\n",tmpfoff);
-
-
         memmove(&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[tmpfoff%PGSIZE]),cur,(PGSIZE-(tmpfoff%PGSIZE)));
         CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].dirty = cachevalid;
         cur+=(PGSIZE-(tmpfoff%PGSIZE)); 
@@ -497,18 +434,8 @@ FIRSTWRITE:
           release(&cachelock);
           goto FIRSTWRITE;
         }
-    
 
-        //cprintf("pid : %d\n",myproc()->pid);
-        //cprintf("TMPOFF %d\n",tmpfoff);
-        //for (int i = 0; i < 6; i++) cprintf("%d ",cur[i]);
-        //cprintf("\n-------------------------\n");
         memmove(&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[tmpfoff%PGSIZE]),cur,n);
-
-        //cprintf("PID : %d\n",myproc()->pid);
-        //for (int i = 0; i < 10; i++) cprintf("%d ",CACHE[CACHE_META[cache_meta_idx].pageidx[tmpfoff/PGSIZE]].page[i]);
-        //cprintf("\n-------------------------\n");
-
 
         CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].dirty = cachevalid;
         cur+=n; 
@@ -566,20 +493,6 @@ THIRDWRITE:
   }
   acquire(&cachelock);
   
-  /*cprintf("CACHE VALUE pid %d\n",myproc()->pid);
-  for (int i = 0; i < 2; i++){
-    cprintf("pid %d, idx %d, metaidx %d, metapgidx %d dirty %d, valid %d fd %d\n",myproc()->pid,i,CACHE[i].metaidx,CACHE[i].metapgidx, CACHE[i].dirty, CACHE[i].valid,CACHE[i].fd);
-    for (int j = 4024; j < 4024 + 20; j++){
-      cprintf("%d ", CACHE[i].page[j]);
-    }
-    cprintf("\n");
-  }  
-  
-  cprintf("CACHE META VALUE\n");
-  for (int i = 0; i < 3; i++){
-    cprintf("%s : pgidx %d, %d ,%d\n",CACHE_META[i].name, CACHE_META[i].pageidx[0], CACHE_META[i].pageidx[1],CACHE_META[i].pageidx[2]);
-  }
-  cprintf("------------------------------------------------------------------------------\n");*/
   release(&cachelock);
   return totalwrite;
 }

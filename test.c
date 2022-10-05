@@ -167,7 +167,7 @@ int
 main(int argc, char* argv[])
 {   
    // nvme_setting();
-    printf(1,"pid is %d\n",getpid());
+    //printf(1,"pid is %d\n",getpid());
     cd("|");
     printf(1, "change cwd????\n");
     int tmp1 = get_ticks();
@@ -199,7 +199,7 @@ main(int argc, char* argv[])
         printf(1,"%d ",p[i]);
     }
     printf(1,"\nEND\n");
-
+    int tmp2 = get_ticks();
     printf(1,"-------------------------------------------------------\n");
     cd("/");
     V = open("README2",O_RDWR);
@@ -233,12 +233,12 @@ main(int argc, char* argv[])
         printf(1,"%d ",p[i]);
     }
     printf(1,"\nEND\n");
-    /*for (int i = 0; i < 7; i++){
-        p[i] = malloc(4096*3);
-        v[i] = caching_open(filename[i],O_RDWR);
-        caching_read(v[i],p[i],4096*3,0);
-    }*/
-    /*for (int k = 0; k < 100; k++){
+
+    int tmp3 = get_ticks();
+
+    printf(1,"nvme %d disk %d\n",tmp2-tmp1, tmp3-tmp2);
+    /*
+    for (int k = 0; k < 100; k++){
         for (int i = 0; i < 7; i++){
             char *q= "pumpk";
             caching_write(v[i%7],q,5,4095);

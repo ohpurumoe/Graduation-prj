@@ -57,9 +57,15 @@ void cc_setting(uint bar)
 int
 cmp_commandid(struct iosq_entry command1, struct iocq_entry command2)
 {
-  cprintf(" %d ?= %d, %d ?= %d\n",command1.command_identifier[0],command2.command_identifier[0],command1.command_identifier[1],command2.command_identifier[1]);
-  if(command1.command_identifier[0] != command2.command_identifier[0]) return -1;
-  if(command1.command_identifier[1] != command2.command_identifier[1]) return -1;
+  //cprintf("");
+  //cprintf(" %d ?= %d, %d ?= %d\n",command1.command_identifier[0],command2.command_identifier[0],command1.command_identifier[1],command2.command_identifier[1]);
+  if(command1.command_identifier[0] != command2.command_identifier[0]) {
+    return -1;
+  }
+  if(command1.command_identifier[1] != command2.command_identifier[1]) {
+    return -1;
+  }
+  //cprintf("");
   return 1;
 }
 
@@ -68,8 +74,19 @@ nvme_command_syn(struct iosq_entry command, struct nvme_queue *que)
 {
   que->submission_queue[que->iosq_rear] = command;
   *(volatile uint*)que->submission_doorbell = ++que->iosq_rear;
+  ushort SID = command.command_identifier[1]*0xff +command.command_identifier[0];
+  //cprintf("SID %d\n", SID);
+  for(;;){  
+    microdelay(0);  
+    struct iocq_entry tmp = que->completion_queue[que->iocq_front];
+    ushort CID = tmp.command_identifier[1]*0xff + tmp.command_identifier[0];
+    //cprintf("CID %d\n",CID);
+    //cprintf("SID %d CID %d\n",SID ,CID);
+    if(SID==CID) break;
+  }
+  //while(cmp_commandid(command, que->completion_queue[que->iocq_front]) == -1 );
   while((get_P(que->completion_queue[que->iocq_front]) != que->p));
-  while(cmp_commandid(command, que->completion_queue[que->iocq_front]) == -1 );
+  
   //cprintf("complete p!!\n");
   //while(cmp_commandid(command, que->completion_queue[que->iocq_front]) == -1 ) {
   //  for (volatile int i = 0; i < 1000; i++){}
@@ -261,7 +278,9 @@ nvme_attach(struct pci_func *pcif)
           break;
       }
     }    
+    //cprintf("attach before!!\n");
     nvme_command_syn(nvme_identify(1,0,1),&admin_que);
+    //cprintf("attach!!!\n");
     nvme_command_syn(nvme_set_feature(2,0),&admin_que);
     nvme_command_syn(nvme_create_iocq(3,0),&admin_que);
     nvme_command_syn(nvme_create_iosq(4,0),&admin_que);
