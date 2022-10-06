@@ -89,6 +89,7 @@ bget(uint dev, uint blockno)
       return b;
     }
   }
+  cprintf("dev %d blockno %d\n",dev, blockno);
   panic("bget: no buffers");
 }
 

@@ -12,6 +12,7 @@
 #include "mmu.h"
 #include "pagecache.h"
 #include "proc.h"
+#include "buddy.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -222,6 +223,7 @@ delete_hash(int idx)
       if(strlen(name) == strlen(tmp->next->name) && (strncmp(name,tmp->next->name,strlen(name)) == 0)){
         dfree(tmp->next);
         tmp->next = 0;
+        return;
       } 
     }
     else {
@@ -229,6 +231,7 @@ delete_hash(int idx)
         struct check_cache_HASH *tmp2 = tmp->next->next;
         dfree(tmp->next);
         tmp->next = tmp2;
+        return;
       } 
     }
   }
@@ -254,7 +257,7 @@ lru_policy(void)
   CACHE_META[CACHE[victim_idx].metaidx].pageidx[CACHE[victim_idx].metapgidx] = 0xff;
   CACHE_META[CACHE[victim_idx].metaidx].cache_page_num--;
   if(CACHE_META[CACHE[victim_idx].metaidx].cache_page_num == 0) {
-    delete_hash(victim_idx);
+    //delete_hash(victim_idx);
   }
 
   clear_victim_cache(victim_idx);

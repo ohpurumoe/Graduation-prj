@@ -548,9 +548,9 @@ writei(struct inode *ip, char *src, uint off, uint n)
     bp = bread(ip->dev, bmap(ip, off/BSIZE));
     m = min(n - tot, BSIZE - off%BSIZE);
     memmove(bp->data + off%BSIZE, src, m);
-    cprintf("1\n");
+    //cprintf("1\n");
     log_write(bp);
-    cprintf("2\n");
+    //cprintf("2\n");
     brelse(bp);
   }
 

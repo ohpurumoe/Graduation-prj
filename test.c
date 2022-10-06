@@ -168,7 +168,7 @@ main(int argc, char* argv[])
 {   
    // nvme_setting();
     //printf(1,"pid is %d\n",getpid());
-    cd("|");
+    /*cd("|");
     printf(1, "change cwd????\n");
     int tmp1 = get_ticks();
     
@@ -236,35 +236,51 @@ main(int argc, char* argv[])
 
     int tmp3 = get_ticks();
 
-    printf(1,"nvme %d disk %d\n",tmp2-tmp1, tmp3-tmp2);
-    /*
+    printf(1,"nvme %d disk %d\n",tmp2-tmp1, tmp3-tmp2);*/
+    for (int i = 2; i < 7; i++){
+        p[i] = malloc(4096*3);
+     //   v[i] = open(filename[i],O_RDWR);
+     //   read(v[i],p[i],4096*3);
+    }    
+    int tmp1 = get_ticks();
+    cd("|");
+    printf(1,"part0\n\n");
+    for (int i = 2; i < 7; i++){
+        printf(1,"%d NNNNNNNNNNNNNNNNNNNNNN\n",i);
+        v[i] = caching_open(filename[i],O_RDWR);
+        //printf(1,"%d NOOOOOOOOOOO\n", v[i]);
+        caching_read(v[i%7],p[i%7],4096*3,0);
+        printf(1,"%d NOOOOOOOOOOO\n", v[i]);
+    }
+    printf(1,"part1\n\n");    
     for (int k = 0; k < 100; k++){
-        for (int i = 0; i < 7; i++){
+        for (int i = 2; i < 7; i++){
             char *q= "pumpk";
             caching_write(v[i%7],q,5,4095);
         }
     }
-    for (int i = 0; i < 7; i++){
+    printf(1,"part2\n\n");  
+    for (int i = 2; i < 7; i++){
         caching_read(v[i%7],p[i%7],10,4093);
     }
-
-    for (int i = 0; i < 7; i++) caching_close(v[i]);
-
-    for (int i = 0; i < 7; i++){
+    printf(1,"part3\n\n");  
+    for (int i = 2; i < 7; i++) caching_close(v[i]);
+    printf(1,"part4\n\n");  
+    for (int i = 2; i < 7; i++){
         v[i] = caching_open(filename[i],O_RDWR);
         caching_read(v[i%7],p[i%7],4096*3,0);
     }
-
+    printf(1,"part5\n\n");  
     int tmp2 = get_ticks();
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-    for (int i = 0; i < 7; i++){
-        p[i] = malloc(4096*3);
+    for (int i = 2; i < 7; i++){
+        //p[i] = malloc(4096*3);
         v[i] = open(filename[i],O_RDWR);
         read(v[i],p[i],4096*3);
     }
 
     for(int k = 0;k < 100; k++){
-    for (int i = 0; i < 7; i++){
+    for (int i = 2; i < 7; i++){
         char *q= "pumpk";
         fileoffset(v[i%7],4095);
         write(v[i%7],q,5);
@@ -272,20 +288,20 @@ main(int argc, char* argv[])
     }
     }
 
-    for (int i = 0; i < 7; i++){
+    for (int i = 2; i < 7; i++){
         fileoffset(v[i%7],4093);
         read(v[i%7],p[i%7],10);
     }
 
-    for (int i = 0; i < 7; i++) close(v[i]);
+    for (int i = 2; i < 7; i++) close(v[i]);
 
-    for (int i = 0; i < 7; i++){
+    for (int i = 2; i < 7; i++){
         v[i] = open(filename[i],O_RDWR);
         fileoffset(v[i%7],0);
         read(v[i%7],p[i%7],4096*3);
     }
     int tmp3 = get_ticks();
-    printf(1,"%d %d\n",tmp2-tmp1, tmp3-tmp2);*/
+    printf(1,"%d %d\n",tmp2-tmp1, tmp3-tmp2);
 
 
     exit();
