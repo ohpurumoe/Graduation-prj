@@ -419,10 +419,8 @@ fileread(struct file *f, char *addr, int n)
 
   if(f->type == FD_INODE){
     ilock(f->ip);
-    //cprintf("here???\n");
     if((r = readi(f->ip, addr, f->off, n)) > 0)
       f->off += r;
-    //cprintf("here too\n");
     iunlock(f->ip);
     return r;
   }

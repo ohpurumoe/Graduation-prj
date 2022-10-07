@@ -121,7 +121,6 @@ found:
   sp -= sizeof *p->context;
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
-  cprintf("alloc proc call forkret??\n");
   p->context->eip = (uint)forkret;
 
   /*
@@ -129,10 +128,6 @@ found:
     p->NAMEFD[i].valid = cacheinvalid;
   }*/
 
-
-
-
-  cprintf("done????\n");
 
   return p;
 }

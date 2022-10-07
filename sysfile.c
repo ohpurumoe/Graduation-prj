@@ -198,18 +198,12 @@ write_direct(struct file *f,int fd)
       }
     }
   }
-  cprintf("name is .. ");
-  for (int i = 0; i < 8;i++){
-    cprintf("%d ",name[i]);
-  }
-  cprintf("\n");
-  cprintf("hash %d\n",namehash);
+
     //need optimization
   for (int i = 0; i < NFILE; i++) {
     if((namehash == CACHE_META[i].namehash) && (strlen(name) == strlen(CACHE_META[i].name)) && (strncmp(name,CACHE_META[i].name,strlen(name))==0)){
       for(int j = 0; j < (MAXFILE * BSIZE)/PGSIZE + 1; j++){
         if(CACHE_META[i].pageidx[j] != 0xff && CACHE[CACHE_META[i].pageidx[j]].dirty == cachevalid && CACHE[CACHE_META[i].pageidx[j]].valid ==1) {
-          cprintf("%x %d \n", CACHE[CACHE_META[i].pageidx[j]].page, CACHE_META[i].pageidx[j]);
           PageCacheFileWrite(f,CACHE[CACHE_META[i].pageidx[j]].page,PGSIZE,j*PGSIZE);
           acquire(&cachelock);
           CACHE[CACHE_META[i].pageidx[j]].dirty = cacheinvalid;
@@ -224,20 +218,15 @@ write_direct(struct file *f,int fd)
 int
 cache_fault_handler(struct file *f, int off, int n, int fd, int rwmode, int gotoidx)
 {
-  cprintf("HELLO??\n");
   if(cachedpg_num == CACHESIZE){
     cachedpg_num--;
     release(&cachelock);
-    cprintf("victim??\n");;
     lru_policy();
     //random_policy();
     //FIFO_policy();
-
-    cprintf("YES\n");
     acquire(&cachelock);
   }
   
-  cprintf("HELLO?????????????????\n");
   for (int i = 0; i < CACHESIZE; i++) {
     if(CACHE[i].valid == cacheinvalid) {
       CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE] = i;
@@ -303,7 +292,6 @@ sys_caching_read(void)
 
   cur = p;
   for (int i = startreadpgsize; i <= endreadpgsize; i++){
-    cprintf(" i is ... %d %d\n", i,endreadpgsize );
     if(i==startreadpgsize) {
       
 FIRSTREAD:
@@ -312,16 +300,13 @@ FIRSTREAD:
       
 
       if(check_cache(f,i) != 1){
-        cprintf("check out!!!!!!!!!!!\n");
         if(cache_fault_handler(f,tmpfoff,n,fd, 0,1) == 1) {
-          cprintf("infinite??\n");
           release(&cachelock);
           goto FIRSTREAD;
         }
       }
 
       if(tmpfoff/PGSIZE != (n+tmpfoff-1)/PGSIZE){
-        cprintf("IFFFFF\n");
         if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
           release(&cachelock);
           goto FIRSTREAD;
@@ -333,7 +318,6 @@ FIRSTREAD:
         release(&cachelock);
       }
       else {
-        cprintf("ELSEEE\n");
         if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
           release(&cachelock);
           goto FIRSTREAD;
@@ -535,18 +519,12 @@ sys_caching_close(void)
   struct file *f;
 
   if(argfd(0, &fd, &f) < 0){
-    cprintf("HERERERERERER\n");
     return -1;
   }
-  cprintf("f %x , fd %d\n", f, fd);
   write_direct(f,fd);
-  cprintf("close fd is %d\n",fd);
   myproc()->ofile[fd] = 0;
-  cprintf("1\n");
   fileclose(f);
-  cprintf("2\n");
   close_namefd(fd);
-  cprintf("3\n");
   return 0;
 }
 int
@@ -816,13 +794,10 @@ sys_open(void)
     }
   } 
   else {
-    cprintf("open nvme readme??\n");
     if((ip = namei(path)) == 0){
-      cprintf("right before end op in open syscall\n");
       end_op(myproc()->cwd->dev);
       return -1;
     }
-    cprintf("open nvme readme ip complete??\n");
     ilock(ip);
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
@@ -968,9 +943,6 @@ sys_cd(void)
   if (argstr(0,&path) < 0 ){
     return -1;
   }
-  cprintf("before cd cwd %x\n", myproc()->cwd);
   myproc()->cwd = namei(path);
-  cprintf("after cd cwd %x\n", myproc()->cwd);
-  cprintf("END CD\n");
   return 0;
 }

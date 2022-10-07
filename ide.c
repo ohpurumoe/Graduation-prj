@@ -67,7 +67,6 @@ ideinit(void)
       break;
     }
   }
-  cprintf("havedisk1              %d\n",havedisk1);
   prp1 = (char *)kalloc();
   prp2 = (char *)kalloc();
   // Switch back to disk 0.

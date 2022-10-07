@@ -344,8 +344,6 @@ ilock(struct inode *ip)
     //sbcheckend
     if(ip->dev == ROOTDEV) bp = bread(ip->dev, IBLOCK(ip->inum, sb));
     else bp = bread(ip->dev, IBLOCK(ip->inum, nvmesb));
-
-    cprintf("ERROR????  %d \n",IBLOCK(ip->inum, nvmesb) );
     dip = (struct dinode*)bp->data + ip->inum%IPB;
     ip->type = dip->type;
     ip->major = dip->major;
@@ -548,9 +546,7 @@ writei(struct inode *ip, char *src, uint off, uint n)
     bp = bread(ip->dev, bmap(ip, off/BSIZE));
     m = min(n - tot, BSIZE - off%BSIZE);
     memmove(bp->data + off%BSIZE, src, m);
-    //cprintf("1\n");
     log_write(bp);
-    //cprintf("2\n");
     brelse(bp);
   }
 
@@ -700,26 +696,12 @@ namex(char *path, int nameiparent, char *name)
 
   if(*path == '/') {
     ip = iget(ROOTDEV, ROOTINO);
-    //cprintf("ROOT IP\n");
-    //print_inode(ip);
   }
   else if(*path == '|') {
-    //cprintf("NVME IP\n");
     ip = iget(NVMEDEV, ROOTINO);
-    //cprintf("NVME IP addr is %x\n", ip);
-    //print_inode(ip);
   }
   else {
-
-    ip = idup(myproc()->cwd);
-    //if(path[0]=='R' &&path[1]=='E' && path[2]=='A' && path[3]=='D' && path[4]=='M' && path[5]=='E'){
-      //cprintf("cwd is %d\n", myproc()->cwd);
-      //cprintf("Dup IP %d\n", ip);
-
-      //print_inode(ip); 
-    //}    
-    //cprintf("Dup IP\n");
-    //print_inode(ip);    
+    ip = idup(myproc()->cwd);    
   }
 
   while((path = skipelem(path, name)) != 0){
@@ -745,9 +727,7 @@ namex(char *path, int nameiparent, char *name)
     iput(ip);
     return 0;
   }
-  /*if(path[0]=='R' &&path[1]=='E' && path[2]=='A' && path[3]=='D' && path[4]=='M' && path[5]=='E'){
-    cprintf("last IP addr is %x\n", ip);
-  } */ 
+
 
   return ip;
 }

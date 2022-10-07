@@ -74,7 +74,6 @@ void buddyInit(void *vstart, void *vend) {
 
     bfreerange(vstart, vend);
     linkNodeList();
-cprintf("------------------------%d %d\n",nodePageCount, nodeListPageCount);
     kmemAlloc.orderList[kmemAlloc.maxOrder].freeList = (struct FREELIST *)kmemAlloc.vstart;
     kmemAlloc.use_lock = 1;
 }
@@ -305,8 +304,6 @@ void mergeOrder(int targetOrder) {
         buddy = (char *)targetList - (space / 2);
         mergeAddress = buddy;
     }
-    cprintf("space : %x\n", space);
-    cprintf("buddy : %x, merge : %x\n", buddy, mergeAddress);
 
     while(candidate) {
         if ((char *)candidate == buddy) {

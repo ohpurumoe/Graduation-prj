@@ -59,8 +59,6 @@ identify
 void
 admin_identify_set_controller_identifier(uint controller_identifier,struct iosq_entry *element)
 {
-    //cprintf("func addr : %x\n",element);
-    //cprintf("command_specific %x\n", (*element).command_specific[0]);
     (*element).command_specific[0] &= 0x0000ff00;
     (*element).command_specific[0] |= (controller_identifier << 16);
 
@@ -175,7 +173,6 @@ read/write command
 
 void
 rw_command_set_lba(uint starting_lba[2], struct iosq_entry *element){
-    //cprintf("startlba%x %x\n",starting_lba[1],starting_lba[0] );
     for (int i = 0; i < 2; i++){
         (*element).command_specific[i]=starting_lba[i];
     }

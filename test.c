@@ -166,7 +166,7 @@ int main(int argc, char* argv[])
 int
 main(int argc, char* argv[])
 {   
-  // nvme_setting();
+    nvme_setting();
     //printf(1,"pid is %d\n",getpid());
     /*cd("|");
     printf(1, "change cwd????\n");
@@ -239,38 +239,28 @@ main(int argc, char* argv[])
     printf(1,"nvme %d disk %d\n",tmp2-tmp1, tmp3-tmp2);*/
     for (int i = 2; i < 7; i++){
         p[i] = malloc(4096*3);
-     //   v[i] = open(filename[i],O_RDWR);
-     //   read(v[i],p[i],4096*3);
     }    
     int tmp1 = get_ticks();
     //cd("|");
-    printf(1,"part0\n\n");
     for (int i = 2; i < 7; i++){
-        printf(1,"%d NNNNNNNNNNNNNNNNNNNNNN\n",i);
         v[i] = caching_open(filename[i],O_RDWR);
         //printf(1,"%d NOOOOOOOOOOO\n", v[i]);
         caching_read(v[i%7],p[i%7],4096*3,0);
-        printf(1,"%d NOOOOOOOOOOO\n", v[i]);
-    }
-    printf(1,"part1\n\n");    
+    }   
     for (int k = 0; k < 100; k++){
         for (int i = 2; i < 7; i++){
             char *q= "pumpk";
             caching_write(v[i%7],q,5,4095);
         }
-    }
-    printf(1,"part2\n\n");  
+    } 
     for (int i = 2; i < 7; i++){
         caching_read(v[i%7],p[i%7],10,4093);
     }
-    printf(1,"part3\n\n");  
     for (int i = 2; i < 7; i++) caching_close(v[i]);
-    printf(1,"part4\n\n");  
     for (int i = 2; i < 7; i++){
         v[i] = caching_open(filename[i],O_RDWR);
         caching_read(v[i%7],p[i%7],4096*3,0);
     }
-    printf(1,"part5\n\n");  
     int tmp2 = get_ticks();
 ////////////////////////////////////////////////////////////////////////////////////////////////////
     for (int i = 2; i < 7; i++){

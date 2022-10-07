@@ -70,8 +70,6 @@ int free_slab_obj(void* slab_obj){
   if(tar_page == 0) return INVALID;
   if(!check_slab_obj((uint)slab_obj, slab[slab_idx].obj_sz)) return INVALID;
 
-  //cprintf("slab_idx : %d hnode : %x\n", slab_idx, hnode);
-
   if(push_free_list(tar_page, slab_obj) == INVALID) return INVALID;
 
   if((tar_page->in_use_num) == 0){
@@ -231,8 +229,8 @@ void slab_init(void){
     slab[slab_idx].cur_slab_page = 0;
 
     slab[slab_idx].static_page = alloc_new_slab_page(slab_idx);
-    printBuddySystem();
-    printHash();
+    //printBuddySystem();
+    //printHash();
     insert_slab_page(TAIL, slab_idx, &(slab[slab_idx].static_page));
     slab[slab_idx].cur_slab_page = &(slab[slab_idx].static_page);
   }
@@ -280,7 +278,6 @@ uint calc_slab_idx(uint N){
   if(N < 4) return 0;
 
   while(N > power2){
-    if(N == 48) cprintf("power2 : %d cnt : %d\n", power2, cnt);
     power2 *= 2; cnt++;
   }
 
@@ -314,7 +311,6 @@ page_try_alloc:
 page_no_free_obj:
   if((cur_page->next != 0) && (cur_page != prev_tail)){
     load_next_slab_page(slab_idx);
-    //cprintf("load next page obj page : %x\n", slab[slab_idx].cur_slab_page);
     goto page_try_alloc;
   }
   else{
@@ -331,7 +327,6 @@ page_no_free_obj:
     insert_slab_page(HEAD, slab_idx, new_page_addr);
     insert_hash_node(slab_idx, new_page_addr);
 
-    //cprintf("alloc page obj page: %x\n", new_page_addr);
     goto page_try_alloc;
   }
 
@@ -351,14 +346,12 @@ try_alloc:
     return pop_free_list(slab_idx);
   }
   else{
-    //cprintf("\n-------slab_system call------\n");
     goto no_free_obj;
   }
 
 no_free_obj:
   if((cur_page->next != 0) && (cur_page != prev_tail)){
     load_next_slab_page(slab_idx);
-    //cprintf("load next slab page : %x\n", slab[slab_idx].cur_slab_page);
     goto try_alloc;
   }
   else{
@@ -374,8 +367,6 @@ no_free_obj:
       
       insert_slab_page(HEAD, slab_idx, new_page_addr);
       insert_hash_node(slab_idx, new_page_addr);
-
-      //cprintf("alloc new slab page : %x\n", slab[slab_idx].cur_slab_page);
       goto try_alloc;
     }
     else{
