@@ -89,6 +89,7 @@ bget(uint dev, uint blockno)
       return b;
     }
   }
+  cprintf("dev %d blockno %d\n",dev, blockno);
   panic("bget: no buffers");
 }
 
@@ -122,11 +123,13 @@ brelse(struct buf *b)
   if(!holdingsleep(&b->lock))
     panic("brelse");
 
+
   releasesleep(&b->lock);
 
   acquire(&bcache.lock);
   b->refcnt--;
   if (b->refcnt == 0) {
+    //cprintf("BRELSE VICTIME!!!!!!!!!!!!!!!!!!!!!!\n\n");
     // no one is waiting for it.
     b->next->prev = b->prev;
     b->prev->next = b->next;

@@ -20,6 +20,7 @@ struct cache{
   int valid;
   struct file *f;
   int fd;
+  int idx;
 };
 
 struct cache CACHE[CACHESIZE];
