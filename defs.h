@@ -44,6 +44,10 @@ void            init_cache(void);
 void            init_cachemeta(void);
 void            clear_victim_cache(int victim_idx);
 void            lru_policy(void);
+void            random_policy(void);
+void            FIFO_policy(void);
+
+
 int             hash(char *str);
 int             pageCacheFileRead(struct file *f, char *addr, int n, int off);
 int             PageCacheFileWrite(struct file *f, char *addr, int n, int off);

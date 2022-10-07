@@ -706,18 +706,18 @@ namex(char *path, int nameiparent, char *name)
   else if(*path == '|') {
     //cprintf("NVME IP\n");
     ip = iget(NVMEDEV, ROOTINO);
-    cprintf("NVME IP addr is %x\n", ip);
+    //cprintf("NVME IP addr is %x\n", ip);
     //print_inode(ip);
   }
   else {
 
     ip = idup(myproc()->cwd);
-    if(path[0]=='R' &&path[1]=='E' && path[2]=='A' && path[3]=='D' && path[4]=='M' && path[5]=='E'){
-      cprintf("cwd is %d\n", myproc()->cwd);
-      cprintf("Dup IP %d\n", ip);
+    //if(path[0]=='R' &&path[1]=='E' && path[2]=='A' && path[3]=='D' && path[4]=='M' && path[5]=='E'){
+      //cprintf("cwd is %d\n", myproc()->cwd);
+      //cprintf("Dup IP %d\n", ip);
 
-      print_inode(ip); 
-    }    
+      //print_inode(ip); 
+    //}    
     //cprintf("Dup IP\n");
     //print_inode(ip);    
   }

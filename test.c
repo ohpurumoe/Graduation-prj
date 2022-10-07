@@ -243,7 +243,7 @@ main(int argc, char* argv[])
      //   read(v[i],p[i],4096*3);
     }    
     int tmp1 = get_ticks();
-    cd("|");
+    //cd("|");
     printf(1,"part0\n\n");
     for (int i = 2; i < 7; i++){
         printf(1,"%d NNNNNNNNNNNNNNNNNNNNNN\n",i);

@@ -24,7 +24,7 @@ struct spinlock writelock[NOFILE];
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
-
+int fifo_cnt = 0;
 
 int
 sys_get_ticks(void)
@@ -155,7 +155,7 @@ check_cache(struct file *f, int pgidx)
 
       //hash finds
       //hash miss
-      //if(check_cache_hash_check(i) == -1){
+      if(check_cache_hash_check(i) == -1){
         for (int j = 0; j < NFILE; j++) {           
           if(
             (myproc()->NAMEFD[i].namehash == CACHE_META[j].namehash)&&
@@ -169,12 +169,13 @@ check_cache(struct file *f, int pgidx)
             break;
           }
         }
-      //}
+      }
       break;
     }
   }
 
   if((cache_meta_idx[myproc()->meta_idx_idx]!= 0xff )&&CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[pgidx]!=0xff) {
+    CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[pgidx]].reference_time = ticks;
     return cachevalid;
   }
   else {
@@ -229,6 +230,9 @@ cache_fault_handler(struct file *f, int off, int n, int fd, int rwmode, int goto
     release(&cachelock);
     cprintf("victim??\n");;
     lru_policy();
+    //random_policy();
+    //FIFO_policy();
+
     cprintf("YES\n");
     acquire(&cachelock);
   }
@@ -264,13 +268,14 @@ cache_fault_handler(struct file *f, int off, int n, int fd, int rwmode, int goto
   
   memmove(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].page,q,PGSIZE);
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].valid = cachevalid;
-        CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].cache_page_num++;
+  CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].cache_page_num++;
   cachedpg_num++;
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].metaidx = cache_meta_idx[myproc()->meta_idx_idx];
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].metapgidx = off/PGSIZE;
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].dirty = cacheinvalid;
   acquire(&tickslock);
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].reference_time = ticks;
+  CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].idx = fifo_cnt++;
   release(&tickslock);
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].f = f;
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].fd = fd;

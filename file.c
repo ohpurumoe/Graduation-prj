@@ -178,6 +178,7 @@ init_cache(void)
     CACHE[i].valid = cacheinvalid;
     CACHE[i].metaidx = 0xff;
     CACHE[i].metapgidx = 0xff;
+    CACHE[i].idx = 0x7fffffff;
   }
   
 }
@@ -203,6 +204,7 @@ void
 clear_victim_cache(int victim_idx)
 {
   CACHE[victim_idx].reference_time = 0X7FFFFFFF;
+  CACHE[victim_idx].idx=0x7fffffff;
   memset(CACHE[victim_idx].page,0,PGSIZE);
   CACHE[victim_idx].dirty = cacheinvalid;
   CACHE[victim_idx].valid = cacheinvalid;
@@ -257,13 +259,56 @@ lru_policy(void)
   CACHE_META[CACHE[victim_idx].metaidx].pageidx[CACHE[victim_idx].metapgidx] = 0xff;
   CACHE_META[CACHE[victim_idx].metaidx].cache_page_num--;
   if(CACHE_META[CACHE[victim_idx].metaidx].cache_page_num == 0) {
-    //delete_hash(victim_idx);
+    delete_hash(victim_idx);
   }
 
   clear_victim_cache(victim_idx);
   release(&cachelock);  
 }
 
+
+void
+random_policy(void)
+{
+  int victim_idx = ticks % CACHESIZE;
+  write_direct(CACHE[victim_idx].f,CACHE[victim_idx].fd);
+  acquire(&cachelock);
+  
+  CACHE_META[CACHE[victim_idx].metaidx].pageidx[CACHE[victim_idx].metapgidx] = 0xff;
+  CACHE_META[CACHE[victim_idx].metaidx].cache_page_num--;
+  if(CACHE_META[CACHE[victim_idx].metaidx].cache_page_num == 0) {
+    delete_hash(victim_idx);
+  }
+
+  clear_victim_cache(victim_idx);
+  release(&cachelock); 
+}
+
+void
+FIFO_policy(void)
+{
+  int victim_idx = -1;
+  int victim_time = 0x7FFFFFFF;
+  
+  for(int i = 0; i < CACHESIZE; i++){
+    if( CACHE[i].idx < victim_time ){
+      victim_time = CACHE[i].reference_time;
+      victim_idx = i;
+    }
+  }
+  write_direct(CACHE[victim_idx].f,CACHE[victim_idx].fd);
+  acquire(&cachelock);
+  
+  CACHE_META[CACHE[victim_idx].metaidx].pageidx[CACHE[victim_idx].metapgidx] = 0xff;
+  CACHE_META[CACHE[victim_idx].metaidx].cache_page_num--;
+  if(CACHE_META[CACHE[victim_idx].metaidx].cache_page_num == 0) {
+    delete_hash(victim_idx);
+  }
+
+  clear_victim_cache(victim_idx);
+  release(&cachelock); 
+
+}
 //struct file *f,int fd
 
 
