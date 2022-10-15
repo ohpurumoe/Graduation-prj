@@ -49,7 +49,7 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
     // The permissions here are overly generous, but they can
     // be further restricted by the permissions in the page table
     // entries, if necessary.
-    *pde = V2P(pgtab) | PTE_P | PTE_W | PTE_U;
+    *pde = V2P(pgtab) | PTE_P | PTE_W | PTE_U | PTE_D;
   }
   return &pgtab[PTX(va)];
 }
@@ -70,7 +70,7 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
       return -1;
     if(*pte & PTE_P)
       panic("remap");
-    *pte = pa | perm | PTE_P;
+    *pte = pa | perm | PTE_P | PTE_D;
     if(a == last)
       break;
     a += PGSIZE;

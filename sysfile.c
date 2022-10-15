@@ -25,7 +25,7 @@ struct spinlock writelock[NOFILE];
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 int fifo_cnt = 0;
-
+int time = 0;
 int
 sys_get_ticks(void)
 {
@@ -58,13 +58,16 @@ fdalloc(struct file *f)
 {
   int fd;
   struct proc *curproc = myproc();
-
+  //cprintf("curproc %x\n", curproc->ofile);
   for(fd = 0; fd < NOFILE; fd++){
+    //cprintf("%x ", curproc->ofile[fd]);
     if(curproc->ofile[fd] == 0){
       curproc->ofile[fd] = f;
+      //cprintf("\n");
       return fd;
     }
   }
+  //cprintf("\n");
   return -1;
 }
 
@@ -108,9 +111,9 @@ sys_fileoffset(void)
   if(argfd(0, 0, &f) < 0 || argint(1, &n) < 0)
     return -1;
   if(n > (f->ip->size)) return -1;
-  acquire(&cachelock);
+  //acquire(&cachelock);
   f->off = n;
-  release(&cachelock);
+  //release(&cachelock);
   return 0;
 }
 
@@ -121,7 +124,7 @@ check_cache_hash_check(int idx)
   int namehash = myproc()->NAMEFD[idx].namehash;
   char *name = myproc()->NAMEFD[idx].name;
   for (tmp = &check_cache_hash[namehash % check_cache_hash_num] ; ; tmp = tmp->next){
-    if(strlen(name) == strlen(tmp->name) && (strncmp(name,tmp->name,strlen(name)) == 0)){
+    if(strlen(name) == strlen(tmp->name) && (strncmp(name,tmp->name,strlen(name)) == 0) && (myproc()->cwd->dev == tmp->dev) ){
       cache_meta_idx[myproc()->meta_idx_idx] = tmp->meta_idx;
       return 1;
     }  
@@ -139,6 +142,7 @@ add_check_cache_hash(int idx, int meta_idx)
     if(tmp->next == 0){
       //tmp->next = (struct check_cache_HASH *)dmalloc(sizeof(struct check_cache_HASH));
       tmp->next->name = myproc()->NAMEFD[idx].name;
+      tmp->next->dev = myproc()->cwd->dev;
       tmp->next->meta_idx = meta_idx;
       tmp->next->next = 0;
       return;
@@ -150,6 +154,8 @@ int
 check_cache(struct file *f, int pgidx)
 {
   ///////////////////////need optimization
+  totalorder++;
+  time++;
   for (int i = 0; i < NOFILE; i++){
     if(myproc()->NAMEFD[i].f == f) {
 
@@ -160,7 +166,8 @@ check_cache(struct file *f, int pgidx)
           if(
             (myproc()->NAMEFD[i].namehash == CACHE_META[j].namehash)&&
             (strlen(myproc()->NAMEFD[i].name) == strlen(CACHE_META[j].name))&&
-            (strncmp(myproc()->NAMEFD[i].name,CACHE_META[j].name,strlen(CACHE_META[j].name)) == 0)
+            (strncmp(myproc()->NAMEFD[i].name,CACHE_META[j].name,strlen(CACHE_META[j].name)) == 0)&&
+            (myproc()->cwd->dev ==CACHE_META[j].dev)
           )
           {
             //add member in hash table
@@ -175,7 +182,9 @@ check_cache(struct file *f, int pgidx)
   }
 
   if((cache_meta_idx[myproc()->meta_idx_idx]!= 0xff )&&CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[pgidx]!=0xff) {
-    CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[pgidx]].reference_time = ticks;
+    CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[pgidx]].reference_time = time;
+    CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[pgidx]].ref = 1;
+    cachehit++;
     return cachevalid;
   }
   else {
@@ -184,33 +193,47 @@ check_cache(struct file *f, int pgidx)
 }
 ////////////////////////////
 void
-write_direct(struct file *f,int fd)
+write_direct(struct file *f,int fd, int victim_idx, int close_flag)
 {
-  int namehash = -1;
-  char *name = 0;
-  for (int i = 0; i < NOFILE; i++){
-    for (int j = 0; j < NOFILE; j++){
-      if(myproc()->NAMEFD[i].fd[j] == fd) {
-        name = myproc()->NAMEFD[i].name;
-        namehash = myproc()->NAMEFD[i].namehash;
-        i = NOFILE;
+  if (close_flag == 1){
+    int namehash = -1;
+    char *name = 0;
+    for (int i = 0; i < NOFILE; i++){
+      for (int j = 0; j < NOFILE; j++){
+        if(myproc()->NAMEFD[i].fd[j] == fd) {
+          name = myproc()->NAMEFD[i].name;
+          namehash = myproc()->NAMEFD[i].namehash;
+          i = NOFILE;
+          break;
+        }
+      }
+    }
+
+      //need optimization
+    for (int i = 0; i < NFILE; i++) {
+      if((namehash == CACHE_META[i].namehash) && (strlen(name) == strlen(CACHE_META[i].name)) && (strncmp(name,CACHE_META[i].name,strlen(name))==0 && (f->ip->dev == CACHE_META[i].dev) )){
+        for(int j = 0; j < (MAXFILE * BSIZE)/PGSIZE + 1; j++){
+          if(CACHE_META[i].pageidx[j] != 0xff && CACHE[CACHE_META[i].pageidx[j]].dirty == cachevalid && CACHE[CACHE_META[i].pageidx[j]].valid ==1) {
+            //cprintf("CLOSE??\n");
+            PageCacheFileWrite(f,CACHE[CACHE_META[i].pageidx[j]].page,PGSIZE,j*PGSIZE);
+            //cprintf("CLOSE END\n");
+            //acquire(&cachelock);
+            CACHE[CACHE_META[i].pageidx[j]].dirty = cacheinvalid;
+            //release(&cachelock);
+          }
+        }
         break;
       }
     }
   }
-
-    //need optimization
-  for (int i = 0; i < NFILE; i++) {
-    if((namehash == CACHE_META[i].namehash) && (strlen(name) == strlen(CACHE_META[i].name)) && (strncmp(name,CACHE_META[i].name,strlen(name))==0)){
-      for(int j = 0; j < (MAXFILE * BSIZE)/PGSIZE + 1; j++){
-        if(CACHE_META[i].pageidx[j] != 0xff && CACHE[CACHE_META[i].pageidx[j]].dirty == cachevalid && CACHE[CACHE_META[i].pageidx[j]].valid ==1) {
-          PageCacheFileWrite(f,CACHE[CACHE_META[i].pageidx[j]].page,PGSIZE,j*PGSIZE);
-          acquire(&cachelock);
-          CACHE[CACHE_META[i].pageidx[j]].dirty = cacheinvalid;
-          release(&cachelock);
-        }
-      }
-      break;
+  else{
+    int metaidx = CACHE[victim_idx].metaidx;
+    int metapgidx = CACHE[victim_idx].metapgidx;
+    if(CACHE_META[metaidx].pageidx[metapgidx] != 0xff && CACHE[CACHE_META[metaidx].pageidx[metapgidx]].dirty == cachevalid && CACHE[CACHE_META[metaidx].pageidx[metapgidx]].valid ==1) {
+      //cprintf("problem??\n");
+      PageCacheFileWrite(f,CACHE[CACHE_META[metaidx].pageidx[metapgidx]].page,PGSIZE,metapgidx*PGSIZE);
+      //cprintf("no problem?\n");
+      CACHE[CACHE_META[metaidx].pageidx[metapgidx]].dirty = cacheinvalid;
     }
   }
 }
@@ -220,11 +243,12 @@ cache_fault_handler(struct file *f, int off, int n, int fd, int rwmode, int goto
 {
   if(cachedpg_num == CACHESIZE){
     cachedpg_num--;
-    release(&cachelock);
-    lru_policy();
+    //release(&cachelock);
+    //lru_policy();
     //random_policy();
     //FIFO_policy();
-    acquire(&cachelock);
+    clock_policy();
+    //acquire(&cachelock);
   }
   
   for (int i = 0; i < CACHESIZE; i++) {
@@ -235,11 +259,11 @@ cache_fault_handler(struct file *f, int off, int n, int fd, int rwmode, int goto
   }
   char *q = kalloc();
 
-  release(&cachelock);
+  //release(&cachelock);
   pageCacheFileRead(f,q,PGSIZE,off- (off)%PGSIZE);
-  acquire(&cachelock);
+  //acquire(&cachelock);
 
-  if(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].valid == cachevalid) {
+  /*if(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].valid == cachevalid) {
     CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]=0xff;
     kfree(q);
     if(rwmode == 0){
@@ -253,7 +277,7 @@ cache_fault_handler(struct file *f, int off, int n, int fd, int rwmode, int goto
       if(gotoidx == 3) return 6;    
     }
     
-  }
+  }*/
   
   memmove(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].page,q,PGSIZE);
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].valid = cachevalid;
@@ -262,12 +286,13 @@ cache_fault_handler(struct file *f, int off, int n, int fd, int rwmode, int goto
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].metaidx = cache_meta_idx[myproc()->meta_idx_idx];
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].metapgidx = off/PGSIZE;
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].dirty = cacheinvalid;
-  acquire(&tickslock);
-  CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].reference_time = ticks;
+  //acquire(&tickslock);
+  CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].reference_time = time;
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].idx = fifo_cnt++;
-  release(&tickslock);
+  //release(&tickslock);
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].f = f;
   CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].fd = fd;
+  CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[off/PGSIZE]].dev = myproc()->cwd->dev;
   kfree(q);
   
   return 0;
@@ -294,56 +319,58 @@ sys_caching_read(void)
   for (int i = startreadpgsize; i <= endreadpgsize; i++){
     if(i==startreadpgsize) {
       
-FIRSTREAD:
-      acquire(&cachelock);
+//FIRSTREAD:
+      //acquire(&cachelock);
 
       
 
       if(check_cache(f,i) != 1){
-        if(cache_fault_handler(f,tmpfoff,n,fd, 0,1) == 1) {
-          release(&cachelock);
-          goto FIRSTREAD;
-        }
+        cache_fault_handler(f,tmpfoff,n,fd, 0,1);
+        //if(cache_fault_handler(f,tmpfoff,n,fd, 0,1) == 1) {
+         // release(&cachelock);
+          //goto FIRSTREAD;
+        //}
       }
 
       if(tmpfoff/PGSIZE != (n+tmpfoff-1)/PGSIZE){
-        if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
-          release(&cachelock);
-          goto FIRSTREAD;
-        }
+        //if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
+         // release(&cachelock);
+          //goto FIRSTREAD;
+        //}
         memmove(cur,&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[tmpfoff%PGSIZE]),(PGSIZE-(tmpfoff%PGSIZE)));
         cur+=(PGSIZE-(tmpfoff%PGSIZE));   
         totalread += (PGSIZE-(tmpfoff%PGSIZE));
         tmpfoff += (PGSIZE-(tmpfoff%PGSIZE)); 
-        release(&cachelock);
+       // release(&cachelock);
       }
       else {
-        if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
-          release(&cachelock);
-          goto FIRSTREAD;
-        }
+        //if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
+         // release(&cachelock);
+          //goto FIRSTREAD;
+        //}
 
         memmove(cur,&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[tmpfoff%PGSIZE]),n);
         cur+=n; 
         tmpfoff += n;
         totalread += n;
-        release(&cachelock);
+      //  release(&cachelock);
       }  
     }
     else if(i == (endreadpgsize)) {
 
-SECONDREAD:
-      acquire(&cachelock);
+//SECONDREAD:
+      //acquire(&cachelock);
       if(check_cache(f,i) != 1){
-        if(cache_fault_handler(f,tmpfoff,n,fd,0,2)==2) {
-          release(&cachelock);
-          goto SECONDREAD;
-        }
+        cache_fault_handler(f,tmpfoff,n,fd,0,2);
+        //if(cache_fault_handler(f,tmpfoff,n,fd,0,2)==2) {
+          //release(&cachelock);
+          //goto SECONDREAD;
+        //}
       }
-      if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
+      /*if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
         release(&cachelock);
         goto SECONDREAD;
-      }
+      }*/
       memmove(cur,&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[0]),n-((uint)cur-(uint)p));
       
       char *curtmp = cur;
@@ -351,32 +378,32 @@ SECONDREAD:
       tmpfoff += n-((uint)curtmp-(uint)p);
       totalread +=n-((uint)curtmp-(uint)p);
       f->off = tmpfoff;
-      release(&cachelock);
+      //release(&cachelock);
     }
     else {
 
-THIRDREAD:
-      acquire(&cachelock);
+//THIRDREAD:
+      //acquire(&cachelock);
       if(check_cache(f,i)!=1){
-        if(cache_fault_handler(f,tmpfoff,n,fd,0,3)==3) {
-          release(&cachelock);
-          goto THIRDREAD;
-        }
+        cache_fault_handler(f,tmpfoff,n,fd,0,3);
+        //if(cache_fault_handler(f,tmpfoff,n,fd,0,3)==3) {
+          //release(&cachelock);
+          //goto THIRDREAD;
+        //}
       }
-      if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
-        release(&cachelock);
-        goto THIRDREAD;
-      }
+      //if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
+        //release(&cachelock);
+        //goto THIRDREAD;
+      //}
       memmove(cur,&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[0]),(PGSIZE));
       
       cur+=PGSIZE;
       tmpfoff += PGSIZE;
       totalread += PGSIZE;
-      release(&cachelock);
+      //release(&cachelock);
     } 
   }
-  acquire(&cachelock);
-  release(&cachelock);
+
   return totalread;
 }
 int
@@ -409,33 +436,34 @@ sys_caching_write(void)
   for (int i = startwritepgsize; i <= endwritepgsize; i++){
     if(i==startwritepgsize) {
 
-FIRSTWRITE:
-      acquire(&cachelock);
+//FIRSTWRITE:
+//      acquire(&cachelock);
       if(check_cache(f,i)!=1){
-        if(cache_fault_handler(f,tmpfoff,n,fd,1,1)==4) {
-          release(&cachelock);
-          goto FIRSTWRITE;
-        }
+        cache_fault_handler(f,tmpfoff,n,fd,1,1);
+//        if(cache_fault_handler(f,tmpfoff,n,fd,1,1)==4) {
+//          release(&cachelock);
+//          goto FIRSTWRITE;
+//        }
       }
       if(tmpfoff/PGSIZE != (n+tmpfoff-1)/PGSIZE){
-        if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
-          release(&cachelock);
-          goto FIRSTWRITE;
-        }        
+//        if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
+//          release(&cachelock);
+//          goto FIRSTWRITE;
+//        }        
         memmove(&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[tmpfoff%PGSIZE]),cur,(PGSIZE-(tmpfoff%PGSIZE)));
         CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].dirty = cachevalid;
         cur+=(PGSIZE-(tmpfoff%PGSIZE)); 
         totalwrite += (PGSIZE-(tmpfoff%PGSIZE));  
         tmpfoff += (PGSIZE-(tmpfoff%PGSIZE));
-        release(&cachelock);
+//        release(&cachelock);
 
       }
       else {
 
-        if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
-          release(&cachelock);
-          goto FIRSTWRITE;
-        }
+//        if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
+//          release(&cachelock);
+//          goto FIRSTWRITE;
+//        }
 
         memmove(&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[tmpfoff%PGSIZE]),cur,n);
 
@@ -443,24 +471,25 @@ FIRSTWRITE:
         cur+=n; 
         tmpfoff += n;
         totalwrite += n;
-        release(&cachelock);
+//        release(&cachelock);
       }  
     }
 
     else if(i == (endwritepgsize)) {
 
-SECONDWRITE:
-      acquire(&cachelock);
+//SECONDWRITE:
+//      acquire(&cachelock);
       if(check_cache(f,i)!=1){
-        if(cache_fault_handler(f,tmpfoff,n,fd,1,2)==5) {
-          release(&cachelock);
-          goto SECONDWRITE;
-        }
+        cache_fault_handler(f,tmpfoff,n,fd,1,2);
+ //       if(cache_fault_handler(f,tmpfoff,n,fd,1,2)==5) {
+//          release(&cachelock);
+//          goto SECONDWRITE;
+//        }
       }
-      if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
-        release(&cachelock);
-        goto SECONDWRITE;
-      }
+//      if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
+//        release(&cachelock);
+//        goto SECONDWRITE;
+//      }
 
       memmove(&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[0]),cur,n-((uint)cur-(uint)p));
       CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].dirty = cachevalid;  
@@ -469,33 +498,34 @@ SECONDWRITE:
       tmpfoff += n-((uint)curtmp-(uint)p);
       totalwrite +=n-((uint)curtmp-(uint)p);
       f->off = tmpfoff;
-      release(&cachelock);
+//      release(&cachelock);
     }
 
     else {
-THIRDWRITE:
-      acquire(&cachelock);
+//THIRDWRITE:
+//      acquire(&cachelock);
       if(check_cache(f,i)!=1){
-        if(cache_fault_handler(f,tmpfoff,n,fd,1,3)==6) {
-          release(&cachelock);
-          goto THIRDWRITE;
-        }
+        cache_fault_handler(f,tmpfoff,n,fd,1,3);
+//        if(cache_fault_handler(f,tmpfoff,n,fd,1,3)==6) {
+//          release(&cachelock);
+//          goto THIRDWRITE;
+//        }
       }
-      if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
-        release(&cachelock);
-        goto THIRDWRITE;
-      }
+//      if( (CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].valid) != cachevalid) {
+//        release(&cachelock);
+//        goto THIRDWRITE;
+//      }
       memmove(&(CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].page[0]),cur,(PGSIZE));
       CACHE[CACHE_META[cache_meta_idx[myproc()->meta_idx_idx]].pageidx[tmpfoff/PGSIZE]].dirty = cachevalid;
       cur+=PGSIZE;
       tmpfoff += PGSIZE;
       totalwrite += PGSIZE;
-      release(&cachelock);
+//      release(&cachelock);
     } 
   }
-  acquire(&cachelock);
+//  acquire(&cachelock);
   
-  release(&cachelock);
+//  release(&cachelock);
   return totalwrite;
 }
 
@@ -521,7 +551,8 @@ sys_caching_close(void)
   if(argfd(0, &fd, &f) < 0){
     return -1;
   }
-  write_direct(f,fd);
+  write_direct(f,fd,0,1);
+  //cprintf("myproc() %x cache fd %d\n",myproc()->ofile,fd);
   myproc()->ofile[fd] = 0;
   fileclose(f);
   close_namefd(fd);
@@ -535,6 +566,7 @@ sys_close(void)
 
   if(argfd(0, &fd, &f) < 0)
     return -1;
+  //cprintf("fd %d\n",fd);
   myproc()->ofile[fd] = 0;
   fileclose(f);
   return 0;
@@ -740,6 +772,7 @@ sys_caching_open(void)
   } else {
     if((ip = namei(path)) == 0){
       end_op(myproc()->cwd->dev);
+
       return -1;
     }
     ilock(ip);

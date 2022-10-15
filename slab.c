@@ -229,8 +229,6 @@ void slab_init(void){
     slab[slab_idx].cur_slab_page = 0;
 
     slab[slab_idx].static_page = alloc_new_slab_page(slab_idx);
-    //printBuddySystem();
-    //printHash();
     insert_slab_page(TAIL, slab_idx, &(slab[slab_idx].static_page));
     slab[slab_idx].cur_slab_page = &(slab[slab_idx].static_page);
   }

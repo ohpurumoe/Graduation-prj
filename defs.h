@@ -13,7 +13,11 @@ struct stat;
 struct superblock;
 
 extern struct spinlock cachelock;
+int             totalorder;
+int             cachehit;
 
+//nvme.c
+extern int      nvme_command_id;
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -46,7 +50,7 @@ void            clear_victim_cache(int victim_idx);
 void            lru_policy(void);
 void            random_policy(void);
 void            FIFO_policy(void);
-
+void            clock_policy(void);
 
 int             hash(char *str);
 int             pageCacheFileRead(struct file *f, char *addr, int n, int off);
@@ -55,7 +59,7 @@ extern int      cachedpg_num;
 extern int      cache_meta_idx[70];
 
 //sysfile.c
-void write_direct(struct file *f,int fd);
+void write_direct(struct file *f,int fd, int victim_idx, int close_flag);
 
 // fs.c
 void            readsb(int dev, struct superblock *sb);
