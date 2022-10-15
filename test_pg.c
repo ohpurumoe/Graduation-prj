@@ -74,7 +74,12 @@ int input_sw(int iter, int mode)
     return tmp2- tmp1;
 }
 
-int input_rr(int iter, int mode)
+int abs(int a){
+    if (a < 0) return -a;
+    return a;
+}
+
+int input_rr(int rand, int iter, int mode)
 {
     int tmp1 = get_ticks();
     for (int i = 0; i < 7; i++){
@@ -83,13 +88,22 @@ int input_rr(int iter, int mode)
     }  
     for (int i = 0; i < iter; i++){
         for (int j = 0; j < 7; j++){
-            if(mode == 0) {
-                fileoffset(v[random[randcnt]%7],randpower[randcnt] % (3*4096));
-                read(v[random[randcnt]%7],p[random[randcnt]%7],randcube[randcnt] % (3* 4096));
+            if(rand <= abs(random[randcnt]%10)){
+                if(mode == 0) {
+                    fileoffset(v[j%7],0);
+                    read(v[j%7],p[j%7],4096*3);
+                }
+                else caching_read(v[j%7],p[j%7],4096*3,0);            
             }
             else {
-                //printf(1, "%i is %d j is %d randcnt %d cube %d power %d\n",i,j,randcnt ,randcube[randcnt]%(3*4096), randpower[randcnt]%(3*4096));
-                caching_read(v[random[randcnt]%7],p[random[randcnt]%7],randcube[randcnt] % (3* 4096),randpower[randcnt] % (3*4096));
+                if(mode == 0) {
+                    fileoffset(v[random[randcnt]%7],randpower[randcnt] % (3*4096));
+                    read(v[random[randcnt]%7],p[random[randcnt]%7],randcube[randcnt] % (3* 4096));
+                }
+                else {
+                    //printf(1, "%i is %d j is %d randcnt %d cube %d power %d\n",i,j,randcnt ,randcube[randcnt]%(3*4096), randpower[randcnt]%(3*4096));
+                    caching_read(v[random[randcnt]%7],p[random[randcnt]%7],randcube[randcnt] % (3* 4096),randpower[randcnt] % (3*4096));
+                }
             }
             randcnt++;
             randcnt %= 7000;
@@ -103,7 +117,7 @@ int input_rr(int iter, int mode)
     return tmp2- tmp1;
 }
 
-int input_rw(int iter, int mode)
+int input_rw(int rand , int iter, int mode)
 {
     int tmp1 = get_ticks();
     for (int i = 0; i < 7; i++){
@@ -112,11 +126,20 @@ int input_rw(int iter, int mode)
     }  
     for (int i = 0; i < iter; i++){
         for (int j = 0; j < 7; j++){
-            if(mode == 0) {
-                fileoffset(v[random[randcnt]%7],randpower[randcnt] % (3*4096));
-                write(v[random[randcnt]%7],p[random[randcnt]%7],randcube[randcnt] % (3* 4096));
+            if(rand <= abs(random[randcnt]%10)){
+                if(mode == 0) {
+                    fileoffset(v[j%7],0);
+                    write(v[j%7],p[j%7],4096*3);
+                }
+                else caching_write(v[j%7],p[j%7],4096*3,0);            
             }
-            else caching_write(v[random[randcnt]%7],p[random[randcnt]%7],randcube[randcnt] % (3* 4096),randpower[randcnt] % (3*4096));
+            else{
+                if(mode == 0) {
+                    fileoffset(v[random[randcnt]%7],randpower[randcnt] % (3*4096));
+                    write(v[random[randcnt]%7],p[random[randcnt]%7],randcube[randcnt] % (3* 4096));
+                }
+                else caching_write(v[random[randcnt]%7],p[random[randcnt]%7],randcube[randcnt] % (3* 4096),randpower[randcnt] % (3*4096));
+            }
             randcnt++;
             randcnt %= 7000;
         }
@@ -135,13 +158,7 @@ main(int argc, char* argv[])
 
     for (int i = 0; i < 7000; i++){
         randpower[i] = (random[i]*random[i])%(3*4096);
-        
-
         randcube[i] = (randpower[i]*random[i])%(3*4096);
-
-
-        //if(randpower[i] < 0) randpower[i] *= -1;
-        //if(randcube[i] < 0) randcube[i] *= -1;
     }
     for (int i = 0; i < 7000; i++){
         random[i] %= 7;
@@ -174,24 +191,9 @@ main(int argc, char* argv[])
     //printf(1,"random read without pagecache --- ticks : %d\n", input_rr(100,0) );
     //printf(1,"random read with pagecache --- ticks : %d\n", input_rr(100,1) );
     //nvme_setting();
-    //printf(1,"random write without pagecache --- ticks : %d\n", input_rw(100,0) );
-    //printf(1,"random write with pagecache --- ticks : %d\n", input_rw(100,1) );
-    //nvme_setting(); 
+    //printf(1,"random write without pagecache --- ticks : %d\n", input_rw(8,100,0) );
+    printf(1,"random write with pagecache --- ticks : %d\n", input_rw(8,100,1) );
+    nvme_setting(); 
     
-
-
-   
-    printf(1,"\n\nNVME vs HDD test (without cache)\n");
-    printf(1,"HDD\n\n");
-    printf(1,"sequential read without pagecache --- ticks : %d\n", input_sr(100,0) );
-    printf(1,"sequential write without pagecache --- ticks : %d\n", input_sw(100,0) );
-    printf(1,"random read without pagecache --- ticks : %d\n", input_rr(100,0) );
-    printf(1,"random write without pagecache --- ticks : %d\n", input_rw(100,0) );
-    printf(1,"NVME\n\n");
-    cd("|");
-    printf(1,"sequential read without pagecache --- ticks : %d\n", input_sr(100,0) );
-    printf(1,"sequential write without pagecache --- ticks : %d\n", input_sw(100,0) );
-    printf(1,"random read without pagecache --- ticks : %d\n", input_rr(100,0) );
-    printf(1,"random write without pagecache --- ticks : %d\n", input_rw(100,0) );
     exit();
 }

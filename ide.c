@@ -81,7 +81,6 @@ idestart(struct buf *b)
     panic("idestart");
   if(b->blockno >= FSSIZE)
     panic("incorrect blockno");
-
   int sector_per_block =  BSIZE/SECTOR_SIZE;
   int sector = b->blockno * sector_per_block;
   if (sector_per_block > 7) panic("idestart"); 
@@ -117,7 +116,6 @@ ideintr(void)
     return;
   }
   idequeue = b->qnext;
-
   // Read data if needed.
   if(!(b->flags & B_DIRTY) && idewait(1) >= 0)
     insl(0x1f0, b->data, BSIZE/4);
@@ -142,7 +140,6 @@ void
 iderw(struct buf *b)
 {
   struct buf **pp;
-
   if(!holdingsleep(&b->lock))
     panic("iderw: buf not locked");
   if((b->flags & (B_VALID|B_DIRTY)) == B_VALID)

@@ -6,7 +6,7 @@
 #define Nvme_ProductVendor              0x58458086
 
 #define	PCI_STATUS_REG			        0x04   
-#define PCI_STATUS_ENABLES              0x00000007
+#define PCI_STATUS_ENABLES              0x0000000F
 
 #define	PCI_REAL_BAR(prebar)            (((prebar) >> 4) << 4)
 #define	PCI_BAR0		                0x10

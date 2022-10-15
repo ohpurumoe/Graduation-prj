@@ -21,6 +21,8 @@ struct cache{
   struct file *f;
   int fd;
   int idx;
+  int ref;
+  int dev;
 };
 
 struct cache CACHE[CACHESIZE];
@@ -31,6 +33,7 @@ struct cache_metadata{
   int valid;
   int close;
   int cache_page_num;
+  int dev;
   uchar pageidx[(MAXFILE * BSIZE)/PGSIZE + 1];
 };
 
@@ -38,6 +41,7 @@ struct cache_metadata CACHE_META[NFILE];
 
 struct check_cache_HASH{
   char *name;
+  int dev;
   uchar meta_idx;
   struct check_cache_HASH *next;
 };

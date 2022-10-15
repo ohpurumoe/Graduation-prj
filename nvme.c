@@ -72,15 +72,20 @@ nvme_command_syn(struct iosq_entry command, struct nvme_queue *que)
 {
   que->submission_queue[que->iosq_rear] = command;
   *(volatile uint*)que->submission_doorbell = ++que->iosq_rear;
-  ushort SID = command.command_identifier[1]*0xff +command.command_identifier[0];
+
+
+  while((get_P(que->completion_queue[que->iocq_front]) != que->p));
   for(;;){  
-    microdelay(0);  
-    struct iocq_entry tmp = que->completion_queue[que->iocq_front];
+    //cli();
+    //cli();
+    microdelay(0);
+    //cprintf();
+    //delay();  
+    ushort SID = command.command_identifier[1]*0xff +command.command_identifier[0];
+    struct iocq_entry tmp = que->completion_queue[que->iocq_front];  
     ushort CID = tmp.command_identifier[1]*0xff + tmp.command_identifier[0];
     if(SID==CID) break;
-  }
-  while((get_P(que->completion_queue[que->iocq_front]) != que->p));
-  
+  }  
   *(volatile uint*)que->completion_doorbell = ++que->iocq_front;
   if(que->iosq_rear >= QSIZE) que->iosq_rear %= QSIZE;
   if(que->iocq_front >= QSIZE) {
@@ -286,175 +291,8 @@ print_cq_entry(struct iocq_entry check)
 void
 sys_nvme_setting(void)
 {
-  printBuddySystem();
-  printHash();
-
-  char *test1 = dmalloc(4096 * 2);
-  cprintf("test1 - %x\n", test1);
-  printBuddySystem();
-  printHash();
-
-  char *test2 = dmalloc(4096);
-  cprintf("test2 - %x\n", test2);
-  printBuddySystem();
-  printHash();
-
-  char *test3 = dmalloc(4096 * 16);
-  cprintf("test3 - %x\n", test3);
-  printBuddySystem();
-  printHash();
-
-  char *test4 = dmalloc(4096);
-  cprintf("test4 - %x\n", test4);
-  printBuddySystem();
-  printHash();
-
-  char *test5 = dmalloc(4096 * 3);
-  cprintf("test5 - %x\n", test5);
-  printBuddySystem();
-  printHash();
-
-  char *test6 = dmalloc(4097);
-  cprintf("test6 - %x\n", test6);
-  printBuddySystem();
-  printHash();
-
-  cprintf("-----------------------------------\n\n");
-  cprintf("free test start\n\n");
-
-  cprintf("\ntest2 free\n");
-  dfree(test2);
-  printBuddySystem();
-  printHash();
-
-  cprintf("\ntest4 free\n");
-  dfree(test4);
-  printBuddySystem();
-  printHash();
-
-  cprintf("\ntest6 free\n");
-  dfree(test6);
-  printBuddySystem();
-  printHash();
-
-  cprintf("\ntest3 free\n");
-  dfree(test3);
-  printBuddySystem();
-  printHash();
-
-  cprintf("\ntest5 free\n");
-  dfree(test5);
-  printBuddySystem();
-  printHash();
-
-  cprintf("\ntest1 free\n");
-  dfree(test1);
-  printBuddySystem();
-  printHash();
-
-  slab_test();
-  /*print_cq_entry(admin_que.completion_queue[0]);
-  nvme_command_syn(nvme_identify(34,0,1),&admin_que);
-  nvme_command_syn(nvme_set_feature(36,0),&admin_que);
-
-  //nvme_command_syn(nvme_create_iocq(38,0),&admin_que);
-  //nvme_command_syn(nvme_create_iosq(39,0),&admin_que);
-
-  print_cq_entry(admin_que.completion_queue[0]);
-  print_cq_entry(admin_que.completion_queue[1]);
-  print_cq_entry(admin_que.completion_queue[2]);
-  print_cq_entry(admin_que.completion_queue[3]);*/
-
-
-/*==============================================
-IO WRITE
-==============================================*/
-
-  
-  /*uint lba[2]={1,0};
-  uint *contents = (uint *)kalloc();
-  uint *read_buffer = (uint *)kalloc();
-  //for (int i = 0; i < 1024; i++) contents[i] = i;
-
-  //nvme_command_syn(nvme_write(40,lba,7,(char *)contents,0),&IO_que[0]);
-
-  lba[0] = 0;
-  nvme_command_syn(nvme_read(41,lba,1,(char *)read_buffer,0),&IO_que[0]);
-
-
-  for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n");
-
-  for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n");cprintf("\n");
-  lba[0] = 1;
-  nvme_command_syn(nvme_read(42,lba,1,(char *)read_buffer,0),&IO_que[0]);
-
-    for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n"); 
-  for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n");cprintf("\n");   
-  lba[0] = 2;
-  nvme_command_syn(nvme_read(43,lba,1,(char *)read_buffer,0),&IO_que[0]);
-
-    for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n");
-  for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n");cprintf("\n");  
-  lba[0] = 3;
-  nvme_command_syn(nvme_read(44,lba,1,(char *)read_buffer,0),&IO_que[0]);
-
-    for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n");
-  for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n");cprintf("\n");
-  lba[0] = 4;
-  nvme_command_syn(nvme_read(45,lba,1,(char *)read_buffer,0),&IO_que[0]);
-
-    for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n");   
-  for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n");cprintf("\n");
-  lba[0] = 5;
-  nvme_command_syn(nvme_read(46,lba,1,(char *)read_buffer,0),&IO_que[0]);
-  for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n");
-    for (int i = 0; i < 64; i++){
-    cprintf("%x ", (uint)read_buffer[i]);
-  }
-  cprintf("\n");     
-
-
-  print_cq_entry(IO_que[0].completion_queue[0]);
-  print_cq_entry(IO_que[0].completion_queue[1]);
-  print_cq_entry(IO_que[0].completion_queue[2]);
-  print_cq_entry(IO_que[0].completion_queue[3]);
-  print_cq_entry(IO_que[0].completion_queue[4]);
-  print_cq_entry(IO_que[0].completion_queue[5]);      
-
-  cprintf("real complete!\n");*/
-
-  //slab_test();
+  //cprintf("total : %d, hit : %d\n",totalorder, cachehit);
+  cprintf("hit rate : %d\n", cachehit * 100 / totalorder);
+  totalorder = 0;
+  cachehit = 0;
 }

@@ -100,7 +100,12 @@ bread(uint dev, uint blockno)
   b = bget(dev, blockno);
   if((b->flags & B_VALID) == 0) {
     iderw(b);
+    if(b->dev == NVMEDEV){
+      b->flags |= B_VALID;
+      b->flags &= ~B_DIRTY;
+    }
   }
+
   return b;
 }
 
@@ -112,6 +117,7 @@ bwrite(struct buf *b)
     panic("bwrite");
   b->flags |= B_DIRTY;
   iderw(b);
+  if (b->dev == NVMEDEV) b->flags &= ~B_DIRTY;
 }
 
 // Release a locked buffer.
@@ -129,6 +135,7 @@ brelse(struct buf *b)
   b->refcnt--;
   if (b->refcnt == 0) {
     // no one is waiting for it.
+    //cprintf("refcnt of dev %d : %d -- flag : %x\n",b->dev,b->refcnt,b->flags);
     b->next->prev = b->prev;
     b->prev->next = b->next;
     b->next = bcache.head.next;

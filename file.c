@@ -67,7 +67,8 @@ already_exist_namefd(struct file *f, char *name, int fd)
   for (int i = 0; i < NOFILE; i++){
     if((namehash == myproc()->NAMEFD[i].namehash) && 
     (strlen(name) == strlen(myproc()->NAMEFD[i].name)) && 
-    (strncmp(name,myproc()->NAMEFD[i].name,strlen(name)) == 0)){
+    (strncmp(name,myproc()->NAMEFD[i].name,strlen(name)) == 0) &&
+    (myproc()->NAMEFD[i].f == f)){
       myproc()->NAMEFD[i].valid = 1;
       setfds(f,i,fd);
       return cachevalid;
@@ -80,7 +81,7 @@ already_exist_namefd(struct file *f, char *name, int fd)
 void
 set_namefd(struct file *f, char *name, int fd)
 {
-  acquire(&cachelock);
+  //acquire(&cachelock);
   for (int i = 0; i < NOFILE; i++) {
     if(myproc()->NAMEFD[i].valid == cacheinvalid) {///////////////////////////////should fix it
       myproc()->NAMEFD[i].name = name;
@@ -92,8 +93,9 @@ set_namefd(struct file *f, char *name, int fd)
         if(CACHE_META[j].valid == cachevalid){
           if((myproc()->NAMEFD[i].namehash == CACHE_META[j].namehash) &&
           strlen(myproc()->NAMEFD[i].name) == strlen(CACHE_META[j].name) &&
-          (strncmp(myproc()->NAMEFD[i].name,CACHE_META[j].name,strlen(name))== 0)){
-            release(&cachelock);
+          (strncmp(myproc()->NAMEFD[i].name,CACHE_META[j].name,strlen(name))== 0)&&
+          (myproc()->NAMEFD[i].f->ip->dev == CACHE_META[j].dev)){
+            //release(&cachelock);
             return;
           }
         }
@@ -115,12 +117,13 @@ set_namefd(struct file *f, char *name, int fd)
         CACHE_META[insertidx].name = name;
         CACHE_META[insertidx].namehash = myproc()->NAMEFD[i].namehash;
         CACHE_META[insertidx].valid=cachevalid;
+        CACHE_META[insertidx].dev = myproc()->NAMEFD[i].f->ip->dev;
       }
       break;
     }  
   }
 
-  release(&cachelock);
+  //release(&cachelock);
 }
 void
 close_namefd(int fd)
@@ -130,7 +133,9 @@ close_namefd(int fd)
     for (int j = 0; j < NOFILE; j++){
       if(myproc()->NAMEFD[i].fd[j]==fd) {
       //valid check
-        myproc()->NAMEFD[i].fd[j] = cacheinvalid;
+        //myproc()->NAMEFD[i].fd[j] = cacheinvalid;
+        myproc()->NAMEFD[i].fd[j] = 0;
+
         myproc()->NAMEFD[i].fdcnt--;
         if(myproc()->NAMEFD[i].fdcnt == 0)
           myproc()->NAMEFD[i].valid = cacheinvalid;
@@ -164,6 +169,7 @@ init_cachemeta(void)
     check_cache_hash[i].name = 0;
     check_cache_hash[i].meta_idx = 0xff;
     check_cache_hash[i].next = 0;
+    check_cache_hash[i].dev = 0;
   }
 
 }
@@ -179,6 +185,9 @@ init_cache(void)
     CACHE[i].metaidx = 0xff;
     CACHE[i].metapgidx = 0xff;
     CACHE[i].idx = 0x7fffffff;
+    CACHE[i].ref = 0;
+    CACHE[i].dev = 0;
+  
   }
   
 }
@@ -209,7 +218,8 @@ clear_victim_cache(int victim_idx)
   CACHE[victim_idx].dirty = cacheinvalid;
   CACHE[victim_idx].valid = cacheinvalid;
   CACHE[victim_idx].metaidx = 0xff;
-  CACHE[victim_idx].metapgidx = 0xff;    
+  CACHE[victim_idx].metapgidx = 0xff; 
+  CACHE[victim_idx].ref = 0;   
 }
 
 void
@@ -246,15 +256,18 @@ lru_policy(void)
 
   int victim_idx = -1;
   int victim_time = 0x7FFFFFFF;
-  
+  //for(int i = 0; i < CACHESIZE; i++){
+  //  cprintf("CACHE time %d victime time %d\n",CACHE[i].reference_time, victim_time);
+  //}
   for(int i = 0; i < CACHESIZE; i++){
     if( CACHE[i].reference_time < victim_time ){
       victim_time = CACHE[i].reference_time;
       victim_idx = i;
     }
   }
-  write_direct(CACHE[victim_idx].f,CACHE[victim_idx].fd);
-  acquire(&cachelock);
+  //cprintf("victime idx %d\n", victim_idx);
+  write_direct(CACHE[victim_idx].f,CACHE[victim_idx].fd,victim_idx, 0);
+ // acquire(&cachelock);
   
   CACHE_META[CACHE[victim_idx].metaidx].pageidx[CACHE[victim_idx].metapgidx] = 0xff;
   CACHE_META[CACHE[victim_idx].metaidx].cache_page_num--;
@@ -263,7 +276,7 @@ lru_policy(void)
   }
 
   clear_victim_cache(victim_idx);
-  release(&cachelock);  
+ // release(&cachelock);  
 }
 
 
@@ -271,8 +284,8 @@ void
 random_policy(void)
 {
   int victim_idx = ticks % CACHESIZE;
-  write_direct(CACHE[victim_idx].f,CACHE[victim_idx].fd);
-  acquire(&cachelock);
+  write_direct(CACHE[victim_idx].f,CACHE[victim_idx].fd,victim_idx, 0);
+  //acquire(&cachelock);
   
   CACHE_META[CACHE[victim_idx].metaidx].pageidx[CACHE[victim_idx].metapgidx] = 0xff;
   CACHE_META[CACHE[victim_idx].metaidx].cache_page_num--;
@@ -281,7 +294,7 @@ random_policy(void)
   }
 
   clear_victim_cache(victim_idx);
-  release(&cachelock); 
+  //release(&cachelock); 
 }
 
 void
@@ -292,12 +305,12 @@ FIFO_policy(void)
   
   for(int i = 0; i < CACHESIZE; i++){
     if( CACHE[i].idx < victim_time ){
-      victim_time = CACHE[i].reference_time;
+      victim_time = CACHE[i].idx;
       victim_idx = i;
     }
   }
-  write_direct(CACHE[victim_idx].f,CACHE[victim_idx].fd);
-  acquire(&cachelock);
+  write_direct(CACHE[victim_idx].f,CACHE[victim_idx].fd,victim_idx, 0);
+  //acquire(&cachelock);
   
   CACHE_META[CACHE[victim_idx].metaidx].pageidx[CACHE[victim_idx].metapgidx] = 0xff;
   CACHE_META[CACHE[victim_idx].metaidx].cache_page_num--;
@@ -306,11 +319,44 @@ FIFO_policy(void)
   }
 
   clear_victim_cache(victim_idx);
-  release(&cachelock); 
+  //release(&cachelock); 
 
 }
 //struct file *f,int fd
 
+
+int axis = 0;
+
+void
+clock_policy(void)
+{
+  int victim_idx = -1;
+  
+  for (;;){
+    if(CACHE[axis].ref == 1){
+      CACHE[axis].ref = 0;
+    }
+    else {
+      victim_idx = axis;
+      axis = (axis+1)%CACHESIZE;
+      break;
+    }
+    axis = (axis+1)%CACHESIZE;
+  }
+  //cprintf("victim idx %d f %d\n",victim_idx, CACHE[victim_idx].f);
+  write_direct(CACHE[victim_idx].f,CACHE[victim_idx].fd,victim_idx, 0);
+  //acquire(&cachelock);
+  
+  CACHE_META[CACHE[victim_idx].metaidx].pageidx[CACHE[victim_idx].metapgidx] = 0xff;
+  CACHE_META[CACHE[victim_idx].metaidx].cache_page_num--;
+  if(CACHE_META[CACHE[victim_idx].metaidx].cache_page_num == 0) {
+    delete_hash(victim_idx);
+  }
+
+  clear_victim_cache(victim_idx);
+  //release(&cachelock);
+
+}
 
 void
 fileinit(void)

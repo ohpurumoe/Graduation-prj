@@ -196,7 +196,7 @@ fs.img: mkfs README2 README README3 README4 README5 README6 README7 mem_req.txt 
 
 nvme.img: 
 	dd if=/dev/zero of=nvme.img bs=1M count=32
-	./mkfs nvme.img $(UPROGS)
+	./mkfs nvme.img README2 README README3 README4 README5 README6 README7 $(UPROGS)
 
 -include *.d
 
