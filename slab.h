@@ -5,7 +5,7 @@
 
 #define SLAB_NUM 10
 #define MAX_FREE_PAGE 2
-#define HASH_SIZE 3
+#define HASH_SIZE 10
 
 struct page{
   struct page* next;
@@ -72,6 +72,7 @@ void slab_test(void);
 void print_slab(uint slab_idx);
 void print_hash(void);
 
+int calc_slab_mem(void);
 uint calc_slab_idx(uint N);
 void load_next_slab_page(uint slab_idx);
 struct page* alloc_new_page_addr(uint page_size);

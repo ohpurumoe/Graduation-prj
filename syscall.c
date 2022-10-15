@@ -111,6 +111,7 @@ extern int sys_caching_read(void);
 extern int sys_caching_write(void);
 extern int sys_get_ticks(void);
 extern int sys_cd(void);
+extern int sys_kernel_dmalloc(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -142,6 +143,7 @@ static int (*syscalls[])(void) = {
 [SYS_caching_write] sys_caching_write,
 [SYS_get_ticks] sys_get_ticks,
 [SYS_cd] sys_cd,
+[SYS_kernel_dmalloc] sys_kernel_dmalloc,
 };
 
 void

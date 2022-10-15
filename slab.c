@@ -229,8 +229,6 @@ void slab_init(void){
     slab[slab_idx].cur_slab_page = 0;
 
     slab[slab_idx].static_page = alloc_new_slab_page(slab_idx);
-    //printBuddySystem();
-    //printHash();
     insert_slab_page(TAIL, slab_idx, &(slab[slab_idx].static_page));
     slab[slab_idx].cur_slab_page = &(slab[slab_idx].static_page);
   }
@@ -270,6 +268,40 @@ void print_hash(void){
     cprintf("\n");
   }
   cprintf("--------------------------\n");
+}
+
+int calc_slab_mem(void){
+  int npage = 0, nhash_node = 0;
+  int slab_mem = SLAB_NUM * (sizeof(struct slab_cache)) + sizeof(struct hash_ptr);
+  // (10 initial slab caches) + struct hash_ptr
+
+  for(int i=0; i<SLAB_NUM; i++){
+    struct page* cur_page = slab[i].cur_slab_page;
+    struct page* static_page = &(slab[i].static_page);
+
+    if((cur_page != static_page) && (cur_page != 0)) npage++;
+
+    while(cur_page){
+      cur_page = cur_page->next;
+      if((cur_page != static_page) && (cur_page != 0)) npage++;
+    }
+  }
+
+  for(int hash_idx = 0; hash_idx < HASH_SIZE; hash_idx++){
+    struct hash_node* cur_node = hash_table[hash_idx].head;
+
+    if(cur_node != 0) nhash_node++;
+
+    while(cur_node){
+      cur_node = cur_node->next;
+      if(cur_node != 0) nhash_node++;
+    }
+  }
+
+  slab_mem += (slab[calc_slab_idx(sizeof(struct page))].obj_sz) * npage ; // using slab per page
+  slab_mem += (slab[calc_slab_idx(sizeof(struct hash_node))].obj_sz) * nhash_node; // using slab per hash node
+
+  return slab_mem;
 }
 
 uint calc_slab_idx(uint N){
@@ -336,8 +368,11 @@ page_alloc_fail:
 
 void* slab_system(uint N){
   uint slab_idx = calc_slab_idx(N);
+
   struct page* cur_page;
   struct page* prev_tail = slab[slab_idx].page_tail;
+  struct page* new_page_addr;
+  struct page new_page;
 
 try_alloc:
   cur_page = slab[slab_idx].cur_slab_page;
@@ -355,8 +390,7 @@ no_free_obj:
     goto try_alloc;
   }
   else{
-    struct page* new_page_addr;
-    struct page new_page = alloc_new_slab_page(slab_idx);
+    new_page = alloc_new_slab_page(slab_idx);
     if(new_page.page_start == 0) {
       cprintf("fail alloc new slab page\n");
       goto alloc_fail;
@@ -376,6 +410,9 @@ no_free_obj:
   }
 
 alloc_fail:
+  if(new_page.page_start != 0){
+    dfree(new_page.page_start);
+  }
   return 0;
 }
 
