@@ -32,6 +32,7 @@ int fileoffset(int f, int n);
 int get_ticks(void);
 void cd(char *);
 int kernel_dmalloc(int);
+void buddy_testing(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

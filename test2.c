@@ -28,10 +28,16 @@ main(int argc, char* argv[])
         }
     }
 
-    printf(1, "test success!\nkalloc_mem : %d total_mem : %d\n", kalloc_mem, total_mem);
+    printf(1, "slab test success!\nkalloc_mem : %d total_mem : %d\n", kalloc_mem, total_mem);
+
+    printf(1,"buddy test begin!\n");
+    buddy_testing();
+
     exit();
 
 fail:
-    printf(1, "test failed\n");
+    printf(1, "slab test failed\n");
+    printf(1,"buddy test begin!\n");
+    buddy_testing();
     exit();
 }

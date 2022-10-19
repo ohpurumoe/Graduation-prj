@@ -29,3 +29,4 @@
 #define SYS_get_ticks 28
 #define SYS_cd 29
 #define SYS_kernel_dmalloc 30
+#define SYS_buddy_testing 31
