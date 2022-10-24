@@ -304,67 +304,83 @@ sys_buddy_testing(void)
   printBuddySystem();
   printHash();
 
-  char *test1 = dmalloc(4096 * 2);
-  cprintf("test1 - %x\n", test1);
+  char *A = dmalloc(4096);
+  cprintf("A - %x\n", A);
   printBuddySystem();
   printHash();
 
-  char *test2 = dmalloc(4096);
-  cprintf("test2 - %x\n", test2);
+  char *B = dmalloc(4096 * 2);
+  cprintf("B - %x\n", B);
   printBuddySystem();
   printHash();
 
-  char *test3 = dmalloc(4096 * 16);
-  cprintf("test3 - %x\n", test3);
+  char *C = dmalloc(4096 * 3);
+  cprintf("C - %x\n", C);
   printBuddySystem();
   printHash();
 
-  char *test4 = dmalloc(4096);
-  cprintf("test4 - %x\n", test4);
+  char *D = dmalloc(4096 * 8);
+  cprintf("D - %x\n", D);
   printBuddySystem();
   printHash();
 
-  char *test5 = dmalloc(4096 * 3);
-  cprintf("test5 - %x\n", test5);
+  char *E = dmalloc(4096);
+  cprintf("E - %x\n", E);
   printBuddySystem();
   printHash();
 
-  char *test6 = dmalloc(4097);
-  cprintf("test6 - %x\n", test6);
+  char *F = dmalloc(4096);
+  cprintf("F - %x\n", F);
   printBuddySystem();
   printHash();
 
-  cprintf("-----------------------------------\n\n");
-  cprintf("free test start\n\n");
-
-  cprintf("\ntest2 free\n");
-  dfree(test2);
+  char *G = dmalloc(4097);
+  cprintf("G - %x\n", G);
   printBuddySystem();
   printHash();
 
-  cprintf("\ntest4 free\n");
-  dfree(test4);
+  cprintf("\nD free\n");
+  dfree(D);
   printBuddySystem();
   printHash();
 
-  cprintf("\ntest6 free\n");
-  dfree(test6);
+  char *H = dmalloc(4096 * 4);
+  cprintf("H - %x\n", H);
   printBuddySystem();
   printHash();
 
-  cprintf("\ntest3 free\n");
-  dfree(test3);
+  cprintf("\nE free\n");
+  dfree(E);
   printBuddySystem();
   printHash();
 
-  cprintf("\ntest5 free\n");
-  dfree(test5);
+  cprintf("\nB free\n");
+  dfree(B);
   printBuddySystem();
   printHash();
 
-  cprintf("\ntest1 free\n");
-  dfree(test1);
+  cprintf("\nF free\n");
+  dfree(F);
   printBuddySystem();
   printHash();
 
+  cprintf("\nH free\n");
+  dfree(H);
+  printBuddySystem();
+  printHash();
+
+  cprintf("\nC free\n");
+  dfree(C);
+  printBuddySystem();
+  printHash();
+
+  cprintf("\nA free\n");
+  dfree(A);
+  printBuddySystem();
+  printHash();
+
+  cprintf("\nG free\n");
+  dfree(G);
+  printBuddySystem();
+  printHash();
 }
