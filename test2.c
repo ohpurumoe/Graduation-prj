@@ -6,6 +6,11 @@
 int
 main(int argc, char* argv[])
 {   
+    printf(1,"buddy test begin!\n");
+    buddy_testing();
+
+    ///////////////////////////////////////////////
+
     char num[5];
     int cnt = 0, req_c = 0, req_m = 0, total_mem = 0, kalloc_mem = 0;
 
@@ -29,9 +34,6 @@ main(int argc, char* argv[])
     }
 
     printf(1, "slab test success!\nkalloc_mem : %d total_mem : %d\n", kalloc_mem, total_mem);
-
-    printf(1,"buddy test begin!\n");
-    buddy_testing();
 
     exit();
 
